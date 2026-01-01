@@ -9,10 +9,12 @@ function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastM
 
   // Handle lobby updates
   useEffect(() => {
-    if (lastMessage?.type === 'LOBBY_UPDATE') {
+    if (gameState?.players) {
+      setPlayers(gameState.players);
+    } else if (lastMessage?.type === 'LOBBY_UPDATE') {
       setPlayers(lastMessage.players);
     }
-  }, [lastMessage]);
+  }, [lastMessage, gameState]);
 
   const getSelectedMapData = () => {
     switch (selectedMap) {

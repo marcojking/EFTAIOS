@@ -71,11 +71,11 @@ function getPlayerView(gameState, playerId) {
       name: p.name,
       role: p.id === playerId ? p.role : (p.revealed ? p.role : null),
       character: p.id === playerId ? p.character : (p.revealed ? p.character : null),
-      revealed: p.revealed,
-      alive: p.alive,
-      escaped: p.escaped,
-      itemCount: p.items.length,
-      hasFed: p.hasFed
+      revealed: p.revealed || false,
+      alive: p.alive ?? true,
+      escaped: p.escaped || false,
+      itemCount: p.items ? p.items.length : (p.hand ? p.hand.length : 0),
+      hasFed: p.hasFed || false
     })),
     announcements: gameState.announcements,
     escapeHatchStatus: gameState.escapeHatchStatus,
