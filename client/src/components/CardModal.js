@@ -76,7 +76,7 @@ function CardModal({
               <>
                 <p>You must declare noise in your <strong>current sector</strong>.</p>
                 <div className="action-buttons">
-                  <button className="action-btn primary" onClick={onDeclareNoiseHere}>
+                  <button className="action-btn primary" onClick={() => onDeclareNoiseHere(false)}>
                     Declare Noise Here
                   </button>
                   {hasCatItem && (

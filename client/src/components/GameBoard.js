@@ -156,15 +156,18 @@ function GameBoard({
 
     console.log('Declare noise here:', { targetSector, drawnCard, pendingAction: gameState?.pendingAction, myPosition: myPlayer?.position });
 
+    // Sanitize useCat to ensure it's a boolean (prevent Event objects)
+    const secureUseCat = typeof useCat === 'boolean' ? useCat : false;
+
     if (targetSector) {
-      onDeclareNoise(targetSector, false, false, useCat);
+      onDeclareNoise(targetSector, false, false, secureUseCat);
       setNoiseDeclarationSector(null);
       onCardDismiss && onCardDismiss();
     } else {
       // Fallback: use myPlayer.position if available
       console.error('No targetSector found for noise declaration');
       if (myPlayer?.position) {
-        onDeclareNoise(myPlayer.position, false, false, useCat);
+        onDeclareNoise(myPlayer.position, false, false, secureUseCat);
         setNoiseDeclarationSector(null);
         onCardDismiss && onCardDismiss();
       }
@@ -271,8 +274,10 @@ function GameBoard({
               <span className="turn-number">Turn {gameState.currentTurn} / {gameState.maxTurns}</span>
               <span className={`current-player ${isMyTurn ? 'highlight' : ''}`}>
                 {isHost
-                  ? `👁️ SPECTATOR VIEW - ${currentTurnPlayer?.name}'s Turn`
-                  : (isMyTurn ? "🎯 YOUR TURN" : `⏳ ${currentTurnPlayer?.name}'s Turn`)
+                  ? `👁️ HOST VIEW - ${currentTurnPlayer?.name}'s Turn`
+                  : (!myPlayer?.alive || myPlayer?.escaped)
+                    ? `👻 SPECTATOR MODE - ${currentTurnPlayer?.name}'s Turn`
+                    : (isMyTurn ? "🎯 YOUR TURN" : `⏳ ${currentTurnPlayer?.name}'s Turn`)
                 }
               </span>
               <div className="toggle-buttons">

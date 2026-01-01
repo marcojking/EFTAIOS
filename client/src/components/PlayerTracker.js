@@ -213,8 +213,9 @@ function PlayerTracker({ announcements, players, currentTurn, maxTurns, firstPla
                   <div className="player-header">
                     <span className="player-initials">{getInitials(player.name)}</span>
                     <span className="player-name-small">{player.name}</span>
-                    {!player.alive && <span className="status-badge dead">X</span>}
-                    {player.escaped && <span className="status-badge escaped">✓</span>}
+                    {!player.alive && <span className="status-badge dead" title="Killed">☠️</span>}
+                    {player.escaped && <span className="status-badge escaped" title="Escaped">🚀</span>}
+                    {player.alive && !player.escaped && player.role === 'alien' && player.revealed && <span className="status-badge alien" title="Revealed Alien">👽</span>}
                   </div>
                 </th>
               ))}

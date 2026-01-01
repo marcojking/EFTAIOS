@@ -54,6 +54,7 @@ function useWebSocket() {
           // Special handling for GAME_STATE_UPDATE to keep it easily accessible
           if (message.type === 'GAME_STATE_UPDATE') {
             setGameState(message.gameState);
+            return; // Don't clobber lastMessage with game state updates
           }
 
           // Always update lastMessage so App.js can react to ROOM_CREATED, etc.

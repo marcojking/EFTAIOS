@@ -8,6 +8,8 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
     const [debugLogs, setDebugLogs] = useState([]);
     const [showDebug, setShowDebug] = useState(false); // Hidden by default, toggle with button
 
+    const [isJoining, setIsJoining] = useState(false);
+
     // Log helper
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
@@ -30,10 +32,11 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
         addLog(`isConnected: ${isConnected}, isConnecting: ${isConnecting}`);
     }, [isConnected, isConnecting]);
 
-    // Log errors
+    // Log errors and reset joining state
     useEffect(() => {
         if (error) {
             addLog(`ERROR: ${error}`);
+            setIsJoining(false); // Reset join state on error
         }
     }, [error]);
 
@@ -50,8 +53,14 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
     const handleJoin = (e) => {
         e.preventDefault();
         addLog(`Join Room clicked: name=${name}, code=${roomCode}`);
-        if (name && roomCode) {
+        if (name && roomCode && !isJoining) {
+            setIsJoining(true); // Disable button to prevent double clicks
             onJoinRoom(name, roomCode);
+
+            // Safety timeout in case server doesn't respond
+            setTimeout(() => {
+                setIsJoining(false);
+            }, 5000);
         }
     };
 
@@ -140,9 +149,9 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                             <button
                                 type="submit"
                                 className="confirm-join-btn"
-                                disabled={!isReady || !name || roomCode.length !== 4}
+                                disabled={!isReady || !name || roomCode.length !== 4 || isJoining}
                             >
-                                {isConnecting ? 'Joining...' : 'Join Room'}
+                                {isConnecting ? 'Joining...' : (isJoining ? 'Joining...' : 'Join Room')}
                             </button>
                         </div>
                     </form>

@@ -3,6 +3,7 @@ import useWebSocket from './hooks/useWebSocket';
 import LandingScreen from './components/LandingScreen';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
+import GlobalPopup from './components/GlobalPopup';
 import './App.css';
 
 
@@ -29,6 +30,7 @@ function App() {
 
   const [landingError, setLandingError] = useState(null);
   const [drawnCard, setDrawnCard] = useState(null);
+  const [popup, setPopup] = useState(null);
 
   // Connect to server on mount
   useEffect(() => {
@@ -84,6 +86,14 @@ function App() {
         isHost: false
       });
       setLandingError('You were removed from the lobby by the host.');
+    }
+    else if (lastMessage.type === 'GLOBAL_POPUP') {
+      setPopup({
+        type: lastMessage.popupType,
+        header: lastMessage.header,
+        message: lastMessage.message,
+        subMessage: lastMessage.subMessage
+      });
     }
   }, [lastMessage]);
 
@@ -151,12 +161,17 @@ function App() {
     setDrawnCard(null);
   }, []);
 
+  const handlePopupClose = useCallback(() => {
+    setPopup(null);
+  }, []);
+
   // VIEW LOGIC
 
   // 1. Not connected or Error -> Show Connect Message (handled in LandingScreen mostly by disabling buttons)
   // 2. Connected, No Room -> Landing Screen
   // 3. Connected, Room, Lobby Phase -> Lobby
   // 4. Connected, Room, Game Phase -> GameBoard
+  // 5. Host is always spectating in GameBoard, but we might want to ensure they see popups too (they will via websocket)
 
   const showLanding = isConnected && !playerState.roomCode;
   const showLobby = playerState.roomCode && (!gameState || gameState.phase === 'LOBBY');
@@ -164,6 +179,17 @@ function App() {
 
   return (
     <div className="App">
+      {/* Global Popup Overlay */}
+      {popup && (
+        <GlobalPopup
+          type={popup.type}
+          header={popup.header}
+          message={popup.message}
+          subMessage={popup.subMessage}
+          onClose={handlePopupClose}
+        />
+      )}
+
       {/* Pre-connection / Landing */}
       {(!isConnected || showLanding) && (
         <LandingScreen

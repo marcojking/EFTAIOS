@@ -42,6 +42,13 @@ class GameState {
   }
 
   addPlayer(id, name) {
+    // Check if player already exists (avoid duplicates from double-clicks)
+    const existingPlayer = this.players.find(p => p.id === id);
+    if (existingPlayer) {
+      existingPlayer.name = name; // Update name just in case
+      return existingPlayer;
+    }
+
     const player = {
       id,
       name,
@@ -167,6 +174,7 @@ class GameState {
 
     // Store the first player's ID for tracker ordering
     this.firstPlayerId = this.players[0].id;
+    this.currentPlayerId = this.players[0].id;
 
     this.addAnnouncement({
       type: 'GAME_START',
@@ -314,6 +322,17 @@ class GameState {
     return { success: true };
   }
 
+  // Helper to trigger a global popup
+  broadcastPopup(type, header, message, subMessage = '') {
+    this.addAnnouncement({
+      type: 'GLOBAL_POPUP',
+      popupType: type, // 'kill', 'escape', 'win', 'loss', 'mutation'
+      header: header,
+      message: message,
+      subMessage: subMessage
+    });
+  }
+
   handleEscapeHatch(player, sector) {
     if (this.escapeHatchStatus[sector] !== 'available') {
       return { success: false, error: 'This escape hatch is not available' };
@@ -380,6 +399,12 @@ class GameState {
         sector: sector,
         message: `${player.name} has escaped via ${sector}!`
       });
+
+      this.broadcastPopup(
+        'escape',
+        'PLAYER ESCAPED',
+        `${player.name} has escaped via ${sector}!`
+      );
 
       this.endTurn();
       this.checkGameEnd();
@@ -582,6 +607,21 @@ class GameState {
       }
     });
 
+    // Victim handling logic
+    const victim = actualVictims[0]; // Assuming single victim for simplicity in popup, though array exists
+
+    if (victim) {
+      if (victim.role === 'human') {
+        // Mutation Logic
+        victim.role = 'alien';
+        victim.moveSpeed = 2;
+        victim.revealed = true;
+        // IMPORTANT: Do NOT set alive=false. They are still alive, just different team.
+        // But wait, the `attack` logic above ALREADY set `victim.alive = false`?
+        // I need to correct the logic in the main loop above first.
+      }
+    }
+
     this.addAnnouncement({
       type: 'ATTACK',
       playerId: player.id,
@@ -589,11 +629,10 @@ class GameState {
       sector: sector,
       victims: actualVictims.map(v => ({ id: v.id, name: v.name, role: v.role })),
       message: actualVictims.length > 0
-        ? `${player.name} attacked in ${sector} and killed ${actualVictims.map(v => v.name).join(', ')}!`
+        ? `${player.name} attacked in ${sector} and hit ${actualVictims.map(v => v.name).join(', ')}!`
         : `${player.name} attacked in ${sector} but found no one!`
     });
 
-    this.pendingAction = null;
     this.endTurn();
     this.checkGameEnd();
 
@@ -766,14 +805,49 @@ class GameState {
         return;
       }
 
-      // Victim dies
-      victim.alive = false;
-      victim.revealed = true;
-      actualVictims.push(victim);
-
       // Check if alien killed human
-      if (player.role === 'alien' && victim.role === 'human') {
+      if (victim.role === 'human') {
         player.hasFed = true;
+
+        // Mutate
+        victim.role = 'alien';
+        victim.moveSpeed = 2;
+        victim.revealed = true;
+        // Alive stays true
+
+        this.addAnnouncement({
+          type: 'MUTATION',
+          playerId: victim.id,
+          playerName: victim.name,
+          message: `${victim.name} has been INFECTED and is now an ALIEN!`
+        });
+
+        this.broadcastPopup(
+          'mutation',
+          'MUTATION!',
+          `${victim.name} was attacked and has mutated into an ALIEN!`,
+          'They have joined the hive.'
+        );
+
+        actualVictims.push(victim);
+      } else {
+        // Kill
+        victim.alive = false;
+        victim.revealed = true;
+        actualVictims.push(victim);
+
+        this.addAnnouncement({
+          type: 'ELIMINATED',
+          playerId: victim.id,
+          message: `${victim.name} (Alien) has been killed!`
+        });
+
+        this.broadcastPopup(
+          'kill',
+          'PLAYER KILLED',
+          `${victim.name} has been killed!`,
+          'They are now a spectator.'
+        );
       }
     });
 
@@ -784,7 +858,7 @@ class GameState {
       sector: targetSector,
       victims: actualVictims.map(v => ({ id: v.id, name: v.name, role: v.role })),
       message: actualVictims.length > 0
-        ? `${player.name} attacked in ${targetSector} and killed ${actualVictims.map(v => v.name).join(', ')}!`
+        ? `${player.name} attacked in ${targetSector}!`
         : `${player.name} attacked in ${targetSector} but found no one!`
     });
 
@@ -1286,6 +1360,7 @@ class GameState {
     }
 
     this.currentPlayerIndex = nextIndex;
+    this.currentPlayerId = this.players[nextIndex].id;
     this.pendingAction = null;
   }
 
@@ -1326,6 +1401,23 @@ class GameState {
       reason: reason,
       message: message
     });
+
+    let popupType = 'win'; // default
+    let header = 'GAME OVER';
+
+    if (reason === 'aliens_win' || reason === 'timeout') {
+      popupType = 'loss'; // Human loss / Alien win
+      header = 'ALIENS WIN!';
+    } else if (reason === 'humans_escaped') {
+      popupType = 'win'; // Human win
+      header = 'HUMANS WIN!';
+    }
+
+    this.broadcastPopup(
+      popupType,
+      header,
+      message
+    );
   }
 
   addAnnouncement(announcement) {
