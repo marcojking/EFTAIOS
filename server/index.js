@@ -250,7 +250,8 @@ function handleMove(ws, client, message) {
       sendTo(ws, {
         type: 'CARD_DRAWN',
         card: result.cardDrawn,
-        itemCard: result.itemDrawn || null
+        itemCard: result.itemDrawn || null,
+        targetSector: result.targetSector  // Pass target sector explicitly
       });
     }
   } else {

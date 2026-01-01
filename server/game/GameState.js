@@ -242,7 +242,8 @@ class GameState {
         success: true,
         cardDrawn: card,
         itemDrawn: itemCard,
-        requiresDeclaration: true
+        requiresDeclaration: true,
+        targetSector: targetSector  // Include the sector for client-side noise declaration
       };
     }
 

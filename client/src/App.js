@@ -79,7 +79,8 @@ function App() {
       case 'CARD_DRAWN':
         setDrawnCard({
           card: lastMessage.card,
-          itemCard: lastMessage.itemCard
+          itemCard: lastMessage.itemCard,
+          targetSector: lastMessage.targetSector  // Include target sector from server
         });
         break;
 
