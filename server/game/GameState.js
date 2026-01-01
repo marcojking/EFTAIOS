@@ -452,6 +452,21 @@ class GameState {
     return this.resolveEscapeCard(player, sector, chosenCard);
   }
 
+  // Alias for chooseEscapeCard (used by server)
+  useEscapeHatch(playerId, cardIndex) {
+    return this.chooseEscapeCard(playerId, cardIndex);
+  }
+
+  // Prime attack - player will attack the sector they move to
+  primeAttack(playerId, primed) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) {
+      return { success: false, error: 'Player not found' };
+    }
+    player.attackPrimed = primed;
+    return { success: true };
+  }
+
   attack(playerId, sector, usePower = false) {
     const player = this.players.find(p => p.id === playerId);
 

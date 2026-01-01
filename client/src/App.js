@@ -28,8 +28,7 @@ function App() {
   });
 
   const [landingError, setLandingError] = useState(null);
-
-
+  const [drawnCard, setDrawnCard] = useState(null);
 
   // Connect to server on mount
   useEffect(() => {
@@ -67,6 +66,14 @@ function App() {
     }
     else if (lastMessage.type === 'ERROR') {
       setLandingError(lastMessage.message);
+    }
+    else if (lastMessage.type === 'CARD_DRAWN') {
+      // Player drew a dangerous sector card - show the modal
+      setDrawnCard({
+        card: lastMessage.card,
+        itemCard: lastMessage.itemCard,
+        targetSector: lastMessage.targetSector
+      });
     }
   }, [lastMessage]);
 
@@ -122,6 +129,9 @@ function App() {
     send({ type: 'PRIME_ATTACK', primed });
   }, [send]);
 
+  const handleCardDismiss = useCallback(() => {
+    setDrawnCard(null);
+  }, []);
 
   // VIEW LOGIC
 
@@ -173,6 +183,8 @@ function App() {
             onUseEscapeHatch={handleUseEscapeHatch}
             onEndTurn={handleEndTurn}
             onPrimeAttack={handlePrimeAttack}
+            drawnCard={drawnCard}
+            onCardDismiss={handleCardDismiss}
           />
         </div>
       )}
