@@ -120,11 +120,18 @@ function App() {
     });
 
     // Connect to WebSocket
-    // If address doesn't include protocol, add it. Support both dev (ws) and prod (wss)
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // If raw IP/Localhost, use standard port logic. If Prod URL, use derived protocol.
-    const cleanAddress = address.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
-    const wsUrl = `${protocol}//${cleanAddress}`;
+    // In production (Render), we connect to the same host that served the page
+    // In development (localhost), we assume port 3001
+    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    let wsUrl;
+    if (isDevelopment) {
+      wsUrl = 'ws://localhost:3001';
+    } else {
+      // Secure WebSocket on production (wss://)
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}`;
+    }
 
     connect(wsUrl);
 
