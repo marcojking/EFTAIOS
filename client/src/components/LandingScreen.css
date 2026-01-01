@@ -21,12 +21,42 @@
     width: 100%;
 }
 
-.landing-screen h1 {
-    font-size: 3rem;
-    margin-bottom: 0.2em;
+.landing-screen h1.game-title {
+    font-size: 1rem;
+    margin-bottom: 1.5em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    line-height: 1.2;
+}
+
+.title-escape {
+    font-size: 3.5rem;
     color: var(--accent-primary);
-    text-shadow: 0 0 10px rgba(0, 247, 255, 0.8);
-    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(0, 247, 255, 0.8);
+    letter-spacing: 0.3em;
+}
+
+.title-from {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.5em;
+    margin: 0.3em 0;
+}
+
+.title-aliens {
+    font-size: 3rem;
+    color: #ff3333;
+    text-shadow: 0 0 20px rgba(255, 50, 50, 0.8);
+    letter-spacing: 0.2em;
+}
+
+.title-space {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.4em;
+    margin-top: 0.3em;
 }
 
 .subtitle {

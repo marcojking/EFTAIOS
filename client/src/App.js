@@ -142,6 +142,7 @@ function App() {
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
           isConnecting={isConnecting}
+          isConnected={isConnected}
           error={wsError || landingError}
         />
       )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './LandingScreen.css';
 
-function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, error }) {
+function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, error }) {
     const [mode, setMode] = useState('menu'); // 'menu', 'join', 'create'
     const [name, setName] = useState('');
     const [roomCode, setRoomCode] = useState('');
@@ -27,27 +27,47 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, error }) {
         }
     };
 
+    // Ready if connected AND not currently busy connecting/creating
+    // Note: isConnecting is typically false once connected, unless we reuse it for 'creating room' spinner
+    // In App.js logic, isConnecting comes from useWebSocket which is strictly WS connection status.
+    // So if isConnected is true, isConnecting should be false.
+    const isReady = isConnected && !isConnecting;
+
     return (
         <div className="landing-screen">
             <div className="landing-content">
-                <h1>EFTAIOS</h1>
-                <div className="subtitle">Escape From The Alien In Outer Space</div>
+                <h1 className="game-title">
+                    <span className="title-escape">ESCAPE</span>
+                    <span className="title-from">FROM THE</span>
+                    <span className="title-aliens">ALIENS</span>
+                    <span className="title-space">IN OUTER SPACE</span>
+                </h1>
 
                 {error && <div className="error-message">{error}</div>}
+
+                {/* Visual feedback for connection status */}
+                {!isConnected && !error && (
+                    <div style={{ color: '#aaa', marginBottom: '20px' }}>
+                        <span className="loading-spinner"></span> Connecting to server...
+                    </div>
+                )}
 
                 {mode === 'menu' && (
                     <div className="menu-options">
                         <button
                             className="option-btn host-btn"
                             onClick={handleCreate}
-                            disabled={isConnecting}
+                            disabled={!isReady}
+                            style={{ opacity: !isReady ? 0.6 : 1, cursor: !isReady ? 'not-allowed' : 'pointer' }}
                         >
-                            {isConnecting ? 'Creating...' : 'Create New Room (Host)'}
+                            {!isConnected ? 'Connecting...' : (isConnecting ? 'Creating...' : 'Create New Room (Host)')}
                         </button>
                         <div className="divider">OR</div>
                         <button
                             className="option-btn join-btn"
                             onClick={() => setMode('join')}
+                            disabled={!isReady}
+                            style={{ opacity: !isReady ? 0.6 : 1 }}
                         >
                             Join Existing Room
                         </button>
@@ -91,9 +111,9 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, error }) {
                             <button
                                 type="submit"
                                 className="confirm-join-btn"
-                                disabled={isConnecting || !name || roomCode.length !== 4}
+                                disabled={!isReady || !name || roomCode.length !== 4}
                             >
-                                {isConnecting ? 'Connecting...' : 'Join Room'}
+                                {isConnecting ? 'Joining...' : 'Join Room'}
                             </button>
                         </div>
                     </form>
