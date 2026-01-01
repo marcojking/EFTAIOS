@@ -5,7 +5,7 @@ const { getAdjacentSectors, isValidMove } = require('./mapUtils');
 class GameState {
   constructor(mapData, playerList) {
     this.map = mapData;
-    this.phase = 'setup'; // setup, playing, ended
+    this.phase = 'LOBBY'; // LOBBY, playing, ended
     this.currentTurn = 0;
     this.maxTurns = 39;
     this.currentPlayerIndex = 0;
@@ -19,12 +19,14 @@ class GameState {
     // Track escape hatch status
     this.escapeHatchStatus = {}; // sectorId -> 'available' | 'used' | 'damaged'
 
-    // Find escape hatches in map and mark as available
-    this.map.grid.forEach(hex => {
-      if (hex.state === 'airlock') {
-        this.escapeHatchStatus[hex.label] = 'available';
-      }
-    });
+    // Find escape hatches in map and mark as available (guard against null map)
+    if (this.map && this.map.grid) {
+      this.map.grid.forEach(hex => {
+        if (hex.state === 'airlock') {
+          this.escapeHatchStatus[hex.label] = 'available';
+        }
+      });
+    }
 
     // Game announcements log
     this.announcements = [];
@@ -40,6 +42,11 @@ class GameState {
   }
 
   assignRoles(playerList) {
+    // Guard against undefined/empty player list (room created but no players yet)
+    if (!playerList || playerList.length === 0) {
+      return [];
+    }
+
     const numPlayers = playerList.length;
     const numAliens = Math.ceil(numPlayers / 2);
     const numHumans = numPlayers - numAliens;
