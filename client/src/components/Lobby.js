@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GALILEI_MAP, GALATEA_MAP, FERMI_MAP } from '../data/maps';
 import './Lobby.css';
 
-function Lobby({ connected, isHost, onStartGame, roomCode, gameState }) {
+function Lobby({ connected, isHost, onStartGame, onKickPlayer, roomCode, gameState }) {
   const [players, setPlayers] = useState([]);
   const [selectedMap, setSelectedMap] = useState('fermi'); // Default to Fermi (New)
 
@@ -70,6 +70,15 @@ function Lobby({ connected, isHost, onStartGame, roomCode, gameState }) {
                   <span className="player-number">{index + 1}</span>
                   <span className="player-name">{player.name}</span>
                   <span className="player-status ready">Ready</span>
+                  {isHost && onKickPlayer && (
+                    <button
+                      className="kick-btn"
+                      onClick={() => onKickPlayer(player.id)}
+                      title="Kick player"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))}
               {playerCount === 0 && (

@@ -75,6 +75,16 @@ function App() {
         targetSector: lastMessage.targetSector
       });
     }
+    else if (lastMessage.type === 'KICKED') {
+      // Player was kicked from lobby - return to landing
+      setPlayerState({
+        id: null,
+        name: '',
+        roomCode: null,
+        isHost: false
+      });
+      setLandingError('You were removed from the lobby by the host.');
+    }
   }, [lastMessage]);
 
   // ACTIONS
@@ -93,6 +103,10 @@ function App() {
 
   const handleStartGame = useCallback((mapData) => {
     send({ type: 'START_GAME', mapData });
+  }, [send]);
+
+  const handleKickPlayer = useCallback((playerId) => {
+    send({ type: 'KICK_PLAYER', playerId });
   }, [send]);
 
   const handleMovePlayer = useCallback((destination) => {
@@ -167,8 +181,9 @@ function App() {
           gameState={gameState}
           isHost={playerState.isHost}
           onStartGame={handleStartGame}
+          onKickPlayer={handleKickPlayer}
           currentPlayerId={playerState.id}
-          roomCode={playerState.roomCode} // Pass room code to display
+          roomCode={playerState.roomCode}
           connected={isConnected}
         />
       )}

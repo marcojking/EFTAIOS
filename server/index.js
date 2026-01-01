@@ -242,6 +242,29 @@ function handleMessage(ws, message) {
       break;
     }
 
+    case 'KICK_PLAYER': {
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+
+      // Only host can kick, and only during lobby
+      if (gameState && client.isHost && gameState.phase === 'LOBBY') {
+        // Remove player from game state
+        gameState.players = gameState.players.filter(p => p.id !== message.playerId);
+
+        // Find and notify the kicked player
+        for (const [clientWs, clientData] of clients.entries()) {
+          if (clientData.id === message.playerId && clientData.roomCode === roomCode) {
+            sendTo(clientWs, { type: 'KICKED', message: 'You have been removed from the lobby by the host.' });
+            clientData.roomCode = null; // Remove from room
+            break;
+          }
+        }
+
+        broadcastGameState(roomCode);
+      }
+      break;
+    }
+
     case 'MOVE_PLAYER': {
       const roomCode = client.roomCode;
       const gameState = roomManager.getRoom(roomCode);

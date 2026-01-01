@@ -139,6 +139,27 @@
   color: #2ed573;
 }
 
+.kick-btn {
+  margin-left: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 77, 77, 0.2);
+  color: #ff4d4d;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.kick-btn:hover {
+  background: rgba(255, 77, 77, 0.4);
+  transform: scale(1.1);
+}
+
 .no-players {
   padding: 30px;
   text-align: center;
