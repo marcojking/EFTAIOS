@@ -326,11 +326,13 @@ export const GALATEA_MAP = {
 // Export Galatea as default map
 // Fermi Map Layout (Based on specific visual design)
 const fermiLayout = [
+  // Row 1 - Escape Pods 3 & 4
+  { col: 9, row: 1, state: 'airlock' },    // J01 - Escape 3
+  { col: 13, row: 1, state: 'airlock' },   // N01 - Escape 4
+
   // Row 2
-  { col: 9, row: 2, state: 'airlock' },    // J02 - Escape 3
   { col: 10, row: 2, state: 'secure' },    // K02
   { col: 12, row: 2, state: 'dangerous' }, // M02
-  { col: 13, row: 2, state: 'airlock' },   // N02 - Escape 4
 
   // Row 3
   { col: 9, row: 3, state: 'dangerous' },  // J03
@@ -347,9 +349,9 @@ const fermiLayout = [
   { col: 13, row: 4, state: 'secure' },    // N04
 
   // Row 5
-  { col: 10, row: 5, state: 'airlock' },   // K05 - Escape 1
+  { col: 9, row: 5, state: 'airlock' },    // J05 - Escape 1
   { col: 11, row: 5, state: 'secure' },    // L05
-  { col: 12, row: 5, state: 'airlock' },   // M05 - Escape 2
+  { col: 13, row: 5, state: 'airlock' },   // N05 - Escape 2
 
   // Row 6
   { col: 8, row: 6, state: 'secure' },     // I06
@@ -372,6 +374,7 @@ const fermiLayout = [
 
   // Row 9 - Chokepoints
   { col: 8, row: 9, state: 'dangerous' },  // I09
+  { col: 11, row: 9, state: 'alien-start' }, // L09 - Alien Start
   { col: 14, row: 9, state: 'secure' },    // O09
 
   // Row 10
@@ -387,7 +390,7 @@ const fermiLayout = [
   { col: 7, row: 11, state: 'secure' },    // H11
   { col: 9, row: 11, state: 'secure' },    // J11
   { col: 10, row: 11, state: 'secure' },   // K11
-  { col: 11, row: 11, state: 'alien-start' }, // L11 - Alien Start
+  { col: 11, row: 11, state: 'secure' },   // L11 - Was Alien Start
   { col: 12, row: 11, state: 'secure' },   // M11
   { col: 13, row: 11, state: 'secure' },   // N11
   { col: 15, row: 11, state: 'dangerous' }, // P11
