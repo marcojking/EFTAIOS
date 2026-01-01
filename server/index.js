@@ -177,6 +177,11 @@ function handleMessage(ws, message) {
       const roomCode = roomManager.createRoom(message.mapData || null);
 
       // Update client state
+      // Use persistent ID if provided, otherwise keep session ID
+      if (message.playerId) {
+        client.id = message.playerId;
+      }
+
       client.roomCode = roomCode;
       client.isHost = true;
       clients.set(ws, client);
@@ -199,20 +204,34 @@ function handleMessage(ws, message) {
         return;
       }
 
-      // Check if game already started
-      if (gameState.phase !== 'LOBBY') {
+      // Determine Player ID to use
+      const targetPlayerId = message.playerId || client.id;
+
+      // Check if this is a reconnection (player exists in game)
+      const existingPlayer = gameState.players.find(p => p.id === targetPlayerId);
+
+      // If game started, ONLY allow reconnection
+      if (gameState.phase !== 'LOBBY' && !existingPlayer) {
         sendTo(ws, { type: 'ERROR', message: 'Game already in progress' });
         return;
+      }
+
+      // If persistent ID provided, update client session to match
+      if (message.playerId) {
+        client.id = message.playerId;
       }
 
       // Update client state
       client.roomCode = roomCode;
       client.name = message.name;
-      client.isHost = false; // Joiners are never hosts
+      client.isHost = false; // Joiners are never hosts (unless we implement host reclaim, but ignoring for now)
       clients.set(ws, client);
 
-      // Add player to game state
+      // Add player to game state (or update existing)
       const player = gameState.addPlayer(client.id, message.name);
+
+      // Mark connected status if we track it (GameState doesn't explicitly track 'connected' bool in a way that affects logic much, but good to know)
+      // We could add player.connected = true; here if we want to show online status later.
 
       sendTo(ws, {
         type: 'ROOM_JOINED',

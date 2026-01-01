@@ -166,6 +166,13 @@
   -webkit-box-orient: vertical;
 }
 
+.item-passive-badge {
+  font-size: 0.75rem;
+  color: #a569bd;
+  font-weight: normal;
+  font-style: italic;
+}
+
 .use-btn {
   padding: 6px 12px;
   background: rgba(0, 217, 255, 0.2);

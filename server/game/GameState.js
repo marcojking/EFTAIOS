@@ -621,12 +621,16 @@ class GameState {
     if (victim) {
       if (victim.role === 'human') {
         // Mutation Logic
+        victim.alive = true; // Override the alive=false set earlier - they mutate, not die
         victim.role = 'alien';
         victim.moveSpeed = 2;
         victim.revealed = true;
-        // IMPORTANT: Do NOT set alive=false. They are still alive, just different team.
-        // But wait, the `attack` logic above ALREADY set `victim.alive = false`?
-        // I need to correct the logic in the main loop above first.
+
+        // Move mutated player to alien base
+        const alienStart = this.map.grid.find(h => h.state === 'alien-start');
+        if (alienStart) {
+          victim.position = alienStart.label;
+        }
       }
     }
 
@@ -823,6 +827,12 @@ class GameState {
         victim.revealed = true;
         // Alive stays true
 
+        // Move mutated player to alien base
+        const alienStart = this.map.grid.find(h => h.state === 'alien-start');
+        if (alienStart) {
+          victim.position = alienStart.label;
+        }
+
         this.addAnnouncement({
           type: 'MUTATION',
           playerId: victim.id,
@@ -834,7 +844,7 @@ class GameState {
           'mutation',
           'MUTATION!',
           `${victim.name} was attacked and has mutated into an ALIEN!`,
-          'They have joined the hive.'
+          'They have joined the hive and moved to the Alien Sector.'
         );
 
         actualVictims.push(victim);

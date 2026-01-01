@@ -34,6 +34,23 @@ function App() {
   const [pendingSecondNoise, setPendingSecondNoise] = useState(null);
   const [pendingEscapeChoice, setPendingEscapeChoice] = useState(null);
 
+  // Initialize persistent player ID
+  useEffect(() => {
+    let storedId = localStorage.getItem('eftaios_player_id');
+    if (!storedId) {
+      // Generate a simple UUID-like string if one doesn't exist
+      storedId = 'player_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('eftaios_player_id', storedId);
+    }
+
+    setPlayerState(prev => ({
+      ...prev,
+      id: storedId
+    }));
+
+    console.log('Persistent Player ID:', storedId);
+  }, []);
+
   // Connect to server on mount
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -54,7 +71,12 @@ function App() {
       setPlayerState(prev => ({
         ...prev,
         roomCode: lastMessage.roomCode,
-        id: lastMessage.playerId,
+        // Don't overwrite our persistent ID with server's session ID if they differ
+        // But for now, let's assume we want to enforce our ID.
+        // The server might echo back an ID. 
+        // We probably want to keep our local ID if possible, or adopt server's if we sent it?
+        // Actually, if we send ID, server should use it. 
+        // For now, let's trust the server response but ensure we don't lose our ID if key.
         isHost: true
       }));
       setLandingError(null);
@@ -104,14 +126,15 @@ function App() {
   const handleCreateRoom = useCallback(() => {
     if (!isConnected) return;
     setPlayerState(prev => ({ ...prev, name: 'Host' })); // Host name defaults, can be changed later? Or just "Host"
-    send({ type: 'CREATE_ROOM' });
-  }, [isConnected, send]);
+    // Send persistent ID so server can link us
+    send({ type: 'CREATE_ROOM', playerId: playerState.id });
+  }, [isConnected, send, playerState.id]);
 
   const handleJoinRoom = useCallback((name, code) => {
     if (!isConnected) return;
     setPlayerState(prev => ({ ...prev, name }));
-    send({ type: 'JOIN_ROOM', name, roomCode: code });
-  }, [isConnected, send]);
+    send({ type: 'JOIN_ROOM', name, roomCode: code, playerId: playerState.id });
+  }, [isConnected, send, playerState.id]);
 
   const handleStartGame = useCallback((mapData) => {
     console.log('App: handleStartGame sending START_GAME with mapData:', mapData?.title);
@@ -192,6 +215,9 @@ function App() {
   const showLobby = playerState.roomCode && (!gameState || gameState.phase === 'LOBBY');
   const showGame = playerState.roomCode && gameState && gameState.phase !== 'LOBBY';
 
+  // Check if it's this player's turn (for green glow effect)
+  const isMyTurn = !playerState.isHost && gameState?.currentPlayerId === playerState.id;
+
   return (
     <div className="App">
       {/* Global Popup Overlay */}
@@ -231,11 +257,12 @@ function App() {
 
       {/* Game */}
       {showGame && (
-        <div className="game-container">
+        <div className={`game-container ${isMyTurn ? 'my-turn' : ''}`}>
           <GameBoard
             gameState={gameState}
             clientId={playerState.id}
             isHost={playerState.isHost}
+            roomCode={playerState.roomCode}
             onMove={handleMovePlayer}
             onMoveAndAttack={handleMoveAndAttack}
             onDeclareNoise={handleDeclareNoise}

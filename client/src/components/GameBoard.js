@@ -11,6 +11,7 @@ function GameBoard({
   gameState,
   clientId,
   isHost,
+  roomCode,
   onMove,
   onAttack,
   onAttackInPlace,
@@ -312,6 +313,9 @@ function GameBoard({
                     ? `👻 SPECTATOR MODE - ${currentTurnPlayer?.name}'s Turn`
                     : (isMyTurn ? "🎯 YOUR TURN" : `⏳ ${currentTurnPlayer?.name}'s Turn`)
                 }
+              </span>
+              <span className="room-code-display" style={{ marginLeft: '15px', color: '#888', fontSize: '0.9em' }}>
+                Room: <strong>{roomCode}</strong>
               </span>
               <div className="toggle-buttons">
                 <button
