@@ -41,6 +41,44 @@ class GameState {
     this.activeEffects = {}; // playerId -> { adrenaline: bool, sedatives: bool, etc. }
   }
 
+  addPlayer(id, name) {
+    const player = {
+      id,
+      name,
+      role: null, // Assigned on start
+      character: null, // Assigned on start
+      position: null,
+      hand: [],
+      isEliminated: false,
+      hasEscaped: false,
+      usedItemThisTurn: false,
+      attackPrimed: false
+    };
+    this.players.push(player);
+    return player;
+  }
+
+  startGame(mapData) {
+    if (mapData) {
+      this.map = mapData;
+      // Re-initialize escape hatches if map wasn't present at start
+      if (this.map && this.map.grid) {
+        this.escapeHatchStatus = {};
+        this.map.grid.forEach(hex => {
+          if (hex.state === 'airlock') {
+            this.escapeHatchStatus[hex.label] = 'available';
+          }
+        });
+      }
+    }
+
+    // Now assign roles to the current players
+    // We recreate the players list with roles assigned
+    this.players = this.assignRoles(this.players);
+    this.phase = 'playing';
+    return { success: true };
+  }
+
   assignRoles(playerList) {
     // Guard against undefined/empty player list (room created but no players yet)
     if (!playerList || playerList.length === 0) {
