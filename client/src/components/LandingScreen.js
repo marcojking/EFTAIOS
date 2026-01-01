@@ -2,9 +2,17 @@ import React, { useState, useEffect } from 'react';
 import './LandingScreen.css';
 
 function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, error }) {
-    const [mode, setMode] = useState('menu'); // 'menu', 'join', 'create'
+    const [mode, setMode] = useState('menu');
     const [name, setName] = useState('');
     const [roomCode, setRoomCode] = useState('');
+    const [debugLogs, setDebugLogs] = useState([]);
+    const [showDebug, setShowDebug] = useState(true); // Show by default for debugging
+
+    // Log helper
+    const addLog = (msg) => {
+        const time = new Date().toLocaleTimeString();
+        setDebugLogs(prev => [...prev.slice(-10), `[${time}] ${msg}`]);
+    };
 
     // Check URL query params for initial room code
     useEffect(() => {
@@ -13,44 +21,61 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
         if (code) {
             setRoomCode(code);
             setMode('join');
+            addLog(`URL has room code: ${code}`);
         }
     }, []);
 
+    // Log connection state changes
+    useEffect(() => {
+        addLog(`isConnected: ${isConnected}, isConnecting: ${isConnecting}`);
+    }, [isConnected, isConnecting]);
+
+    // Log errors
+    useEffect(() => {
+        if (error) {
+            addLog(`ERROR: ${error}`);
+        }
+    }, [error]);
+
     const handleCreate = () => {
+        addLog('Create Room button clicked!');
+        if (!isConnected) {
+            addLog('WARNING: Not connected, button should be disabled');
+            return;
+        }
+        addLog('Calling onCreateRoom...');
         onCreateRoom();
     };
 
     const handleJoin = (e) => {
         e.preventDefault();
+        addLog(`Join Room clicked: name=${name}, code=${roomCode}`);
         if (name && roomCode) {
             onJoinRoom(name, roomCode);
         }
     };
 
-    // Ready if connected AND not currently busy connecting/creating
-    // Note: isConnecting is typically false once connected, unless we reuse it for 'creating room' spinner
-    // In App.js logic, isConnecting comes from useWebSocket which is strictly WS connection status.
-    // So if isConnected is true, isConnecting should be false.
     const isReady = isConnected && !isConnecting;
 
     return (
         <div className="landing-screen">
             <div className="landing-content">
-                <h1 className="game-title">
-                    <span className="title-escape">ESCAPE</span>
-                    <span className="title-from">FROM THE</span>
-                    <span className="title-aliens">ALIENS</span>
-                    <span className="title-space">IN OUTER SPACE</span>
-                </h1>
+                <h1>EFTAIOS</h1>
+                <div className="subtitle">Escape From The Alien In Outer Space</div>
 
                 {error && <div className="error-message">{error}</div>}
 
-                {/* Visual feedback for connection status */}
-                {!isConnected && !error && (
-                    <div style={{ color: '#aaa', marginBottom: '20px' }}>
-                        <span className="loading-spinner"></span> Connecting to server...
-                    </div>
-                )}
+                {/* Connection Status - Always visible */}
+                <div style={{
+                    padding: '10px',
+                    marginBottom: '20px',
+                    borderRadius: '4px',
+                    background: isConnected ? 'rgba(0,255,0,0.2)' : 'rgba(255,165,0,0.2)',
+                    border: `1px solid ${isConnected ? '#0f0' : '#fa0'}`,
+                    color: isConnected ? '#0f0' : '#fa0'
+                }}>
+                    {isConnected ? '✅ Connected to Server' : '⏳ Connecting to Server...'}
+                </div>
 
                 {mode === 'menu' && (
                     <div className="menu-options">
@@ -58,16 +83,20 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                             className="option-btn host-btn"
                             onClick={handleCreate}
                             disabled={!isReady}
-                            style={{ opacity: !isReady ? 0.6 : 1, cursor: !isReady ? 'not-allowed' : 'pointer' }}
+                            style={{
+                                opacity: !isReady ? 0.5 : 1,
+                                cursor: !isReady ? 'not-allowed' : 'pointer',
+                                pointerEvents: 'auto' // Force clickable for debugging
+                            }}
                         >
-                            {!isConnected ? 'Connecting...' : (isConnecting ? 'Creating...' : 'Create New Room (Host)')}
+                            {!isConnected ? '⏳ Waiting for Connection...' : 'Create New Room (Host)'}
                         </button>
                         <div className="divider">OR</div>
                         <button
                             className="option-btn join-btn"
-                            onClick={() => setMode('join')}
+                            onClick={() => { addLog('Join mode clicked'); setMode('join'); }}
                             disabled={!isReady}
-                            style={{ opacity: !isReady ? 0.6 : 1 }}
+                            style={{ opacity: !isReady ? 0.5 : 1 }}
                         >
                             Join Existing Room
                         </button>
@@ -120,7 +149,46 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                 )}
             </div>
 
-            <div className="version-tag">Cloud Edition v2.0 - Room System</div>
+            {/* Debug Panel - Toggle with button */}
+            <div style={{ marginTop: '20px', width: '100%', maxWidth: '500px' }}>
+                <button
+                    onClick={() => setShowDebug(!showDebug)}
+                    style={{
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '1px solid #444',
+                        color: '#888',
+                        padding: '5px 10px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        marginBottom: '10px'
+                    }}
+                >
+                    {showDebug ? 'Hide' : 'Show'} Debug Log
+                </button>
+
+                {showDebug && (
+                    <div style={{
+                        background: 'rgba(0,0,0,0.8)',
+                        border: '1px solid #333',
+                        borderRadius: '4px',
+                        padding: '10px',
+                        fontFamily: 'monospace',
+                        fontSize: '11px',
+                        color: '#0f0',
+                        maxHeight: '150px',
+                        overflowY: 'auto',
+                        textAlign: 'left'
+                    }}>
+                        {debugLogs.length === 0 ? (
+                            <div style={{ color: '#666' }}>Waiting for events...</div>
+                        ) : (
+                            debugLogs.map((log, i) => <div key={i}>{log}</div>)
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div className="version-tag">Cloud Edition v2.1 - Debug Mode</div>
         </div>
     );
 }
