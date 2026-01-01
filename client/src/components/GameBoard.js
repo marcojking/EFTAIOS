@@ -35,7 +35,8 @@ function GameBoard({
   const [attackPrimed, setAttackPrimed] = useState(false); // Prime attack before moving
 
   const myPlayer = gameState?.myPlayer;
-  const isMyTurn = gameState?.currentPlayerId === clientId;
+  // Host is never "playing" - they're spectating
+  const isMyTurn = !isHost && gameState?.currentPlayerId === clientId;
   const currentTurnPlayer = gameState?.players?.find(p => p.id === gameState.currentPlayerId);
 
   // Calculate reachable sectors for movement
@@ -256,10 +257,13 @@ function GameBoard({
           {/* Center: Hex Grid Map */}
           <div className="game-center">
             {/* PROMINENT Turn Indicator */}
-            <div className={`turn-indicator ${isMyTurn ? 'my-turn' : ''}`}>
+            <div className={`turn-indicator ${isMyTurn ? 'my-turn' : ''} ${isHost ? 'host-view' : ''}`}>
               <span className="turn-number">Turn {gameState.currentTurn} / {gameState.maxTurns}</span>
               <span className={`current-player ${isMyTurn ? 'highlight' : ''}`}>
-                {isMyTurn ? "🎯 YOUR TURN" : `⏳ ${currentTurnPlayer?.name}'s Turn`}
+                {isHost
+                  ? `👁️ SPECTATOR VIEW - ${currentTurnPlayer?.name}'s Turn`
+                  : (isMyTurn ? "🎯 YOUR TURN" : `⏳ ${currentTurnPlayer?.name}'s Turn`)
+                }
               </span>
               <div className="toggle-buttons">
                 <button

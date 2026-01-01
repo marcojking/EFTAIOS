@@ -164,7 +164,8 @@ function App() {
         <div className="game-container">
           <GameBoard
             gameState={gameState}
-            myPlayerId={playerState.id}
+            clientId={playerState.id}
+            isHost={playerState.isHost}
             onMove={handleMovePlayer}
             onDeclareNoise={handleDeclareNoise}
             onUseItem={handleUseItem}
