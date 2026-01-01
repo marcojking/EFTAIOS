@@ -107,11 +107,9 @@ function App() {
     }
   }, [lastMessage]);
 
-  const handleJoin = useCallback((name, host, address) => {
+  const handleJoin = useCallback((name, host) => {
     setPlayerName(name);
     setIsHost(host);
-    setIsHost(host);
-    setServerAddress(address);
     setIsConnecting(true);
 
     // Queue the join message first (will be sent when connected)
@@ -274,17 +272,12 @@ function App() {
 // Join Screen Component
 function JoinScreen({ onJoin, isConnecting }) {
   const [name, setName] = useState('');
-  // Auto-detect server address for simplified joining
-  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const initialAddress = isDevelopment ? 'localhost:3001' : window.location.host;
-
-  const [address, setAddress] = useState(initialAddress);
   const [mode, setMode] = useState(null); // null, 'player', 'host'
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (name.trim() && address.trim()) {
-      onJoin(name.trim(), mode === 'host', address.trim());
+    if (name.trim()) {
+      onJoin(name.trim(), mode === 'host');
     }
   };
 
@@ -320,17 +313,6 @@ function JoinScreen({ onJoin, isConnecting }) {
         ) : (
           <form onSubmit={handleSubmit} className="join-form">
 
-            <div className="form-group">
-              <label>Server Address</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="game.example.com"
-                disabled={isConnecting || !isDevelopment} // Lock address in production
-              />
-              {!isDevelopment && <small style={{ color: '#888' }}>Auto-connected to this server</small>}
-            </div>
             <div className="form-group">
               <label>{mode === 'host' ? 'Host Name' : 'Your Name'}</label>
               <input
