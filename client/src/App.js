@@ -117,6 +117,10 @@ function App() {
     send({ type: 'ATTACK', sector });
   }, [send]);
 
+  const handleMoveAndAttack = useCallback((sector) => {
+    send({ type: 'MOVE_AND_ATTACK', sector });
+  }, [send]);
+
   const handleUseEscapeHatch = useCallback((cardIndex) => {
     send({ type: 'USE_ESCAPE_HATCH', cardIndex });
   }, [send]);
@@ -177,6 +181,7 @@ function App() {
             clientId={playerState.id}
             isHost={playerState.isHost}
             onMove={handleMovePlayer}
+            onMoveAndAttack={handleMoveAndAttack}
             onDeclareNoise={handleDeclareNoise}
             onUseItem={handleUseItem}
             onAttack={handleAttack}

@@ -154,10 +154,20 @@ function GameBoard({
     // This ensures we always declare noise in the sector we moved INTO, not FROM
     const targetSector = drawnCard?.targetSector || gameState?.pendingAction?.sector || myPlayer?.position;
 
+    console.log('Declare noise here:', { targetSector, drawnCard, pendingAction: gameState?.pendingAction, myPosition: myPlayer?.position });
+
     if (targetSector) {
       onDeclareNoise(targetSector, false, false, useCat);
       setNoiseDeclarationSector(null);
       onCardDismiss && onCardDismiss();
+    } else {
+      // Fallback: use myPlayer.position if available
+      console.error('No targetSector found for noise declaration');
+      if (myPlayer?.position) {
+        onDeclareNoise(myPlayer.position, false, false, useCat);
+        setNoiseDeclarationSector(null);
+        onCardDismiss && onCardDismiss();
+      }
     }
   }, [drawnCard, gameState, myPlayer, onDeclareNoise, onCardDismiss]);
 

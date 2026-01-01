@@ -273,6 +273,21 @@ function handleMessage(ws, message) {
       break;
     }
 
+    case 'MOVE_AND_ATTACK': {
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+
+      if (gameState) {
+        const result = gameState.moveAndAttack(client.id, message.sector);
+        if (result.success) {
+          broadcastGameState(roomCode);
+        } else {
+          sendTo(ws, { type: 'ERROR', message: result.error || 'Move and attack failed' });
+        }
+      }
+      break;
+    }
+
     // ... Delegate all other actions to the room's GameState ...
     case 'DECLARE_NOISE':
     case 'USE_ITEM':
