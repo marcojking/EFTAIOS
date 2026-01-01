@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
+import { useTokenDrag } from '../hooks/useTokenDrag';
 import './HexGrid.css';
 
 // Hex dimensions - FLAT-TOP orientation
@@ -52,6 +53,65 @@ function getSectorColor(state, escapeHatchStatus, label) {
   }
 }
 
+// Sub-component for Draggable Ghost Token on Map
+function HexGhostToken({
+  playerId,
+  initials,
+  color,
+  x,
+  y,
+  sector,
+  onDragStart,
+  onTap,
+  isDragging
+}) {
+  const { handlers } = useTokenDrag({
+    playerId,
+    holdDuration: 300,
+    onDragStart: (pid, startPos) => {
+      onDragStart({
+        playerId: pid,
+        color: color,
+        initials: initials,
+        originSector: sector,
+        startPos: startPos
+      });
+    },
+    onTap: (pid) => onTap(pid) // Optional: Tap on map token could also toggle color?
+  });
+
+  if (isDragging) return null; // Hide if dragging
+
+  return (
+    <g
+      className="ghost-token"
+      style={{ cursor: 'grab' }}
+      {...handlers}
+    >
+      <circle
+        cx={x}
+        cy={y}
+        r={10}
+        fill={color}
+        fillOpacity="0.6"
+        stroke={color}
+        strokeWidth="2"
+      />
+      <text
+        x={x}
+        y={y + 3}
+        textAnchor="middle"
+        fontSize="8"
+        fill="white"
+        fontWeight="bold"
+        pointerEvents="none"
+      >
+        {initials}
+      </text>
+    </g>
+  );
+}
+
 function HexGrid({
   map,
   myPosition,
@@ -64,7 +124,9 @@ function HexGrid({
   onHexClick,
   highlightMode,
   pulsingSectors,
-  playerGuesses
+  playerGuesses,
+  dragState,
+  onDragStart
 }) {
   const svgRef = useRef(null);
   const [viewBox, setViewBox] = useState('0 0 800 600');
@@ -106,8 +168,7 @@ function HexGrid({
     setViewBox(`${bounds.minX} ${bounds.minY} ${width} ${height}`);
   }, [bounds]);
 
-  // Get player initials and color
-  // Get player initials and color
+  // Get player initials and color (Centralized Logic basically)
   const getPlayerDisplay = (playerId) => {
     const player = players?.find(p => p.id === playerId);
     if (!player) return { initials: '?', color: '#888' };
@@ -128,7 +189,7 @@ function HexGrid({
       // Regular players see their GUESSES
       if (playerGuesses && playerGuesses[playerId]) {
         const guess = playerGuesses[playerId];
-        if (guess === 'human') color = '#00ff88'; // Green
+        if (guess === 'human') color = '#00d9ff'; // Blue
         else if (guess === 'alien') color = '#e94560'; // Red
       }
     }
@@ -148,18 +209,33 @@ function HexGrid({
       ? players?.filter(p => p.position === hex.label && p.alive && !p.escaped) || []
       : [];
 
-    // Apply coloring to "real" map tokens too, based on guesses (keeps map consistent with top bar)
-    // Note: If showAllPlayers is true (spectating), we still use guesses for colors
-    // to strictly follow "tokens should never auto change colors".
-
     const isHighlighted = highlightMode === 'noise-select';
     const isSelecting = selectedGhostPlayer !== null;
-    const isPulsing = pulsingSectors && pulsingSectors.has(hex.label);
+
+    // Handle both new Map format and old Set format for backward compatibility
+    let isPulsing = false;
+    let pulseType = 'noise'; // 'noise' (yellow) or 'attack' (red)
+    let showSkull = false;
+
+    if (pulsingSectors instanceof Map) {
+      if (pulsingSectors.has(hex.label)) {
+        isPulsing = true;
+        const effect = pulsingSectors.get(hex.label);
+        pulseType = effect.type;
+        showSkull = effect.kill;
+      }
+    } else if (pulsingSectors instanceof Set) {
+      isPulsing = pulsingSectors.has(hex.label);
+    }
+
+    const pulseClass = pulseType === 'attack' ? 'pulse-red' : 'pulse-yellow';
+    const pulseColor = pulseType === 'attack' ? '#ff3333' : '#ffcc00';
 
     return (
       <g
         key={hex.label}
         className={`hex-group ${isMyPosition ? 'my-position' : ''} ${isSelecting ? 'selecting' : ''}`}
+        data-sector={hex.label} // Crucial for Drop Detection
         onClick={() => {
           if (dragDistance.current < 5) {
             onHexClick(hex.label);
@@ -170,9 +246,9 @@ function HexGrid({
         <polygon
           points={getHexPoints(x, y, HEX_SIZE - 1)}
           fill={colors.fill}
-          stroke={isHighlighted ? '#e94560' : (isPulsing ? '#ffcc00' : colors.stroke)}
+          stroke={isHighlighted ? '#e94560' : (isPulsing ? pulseColor : colors.stroke)}
           strokeWidth={isHighlighted || isPulsing ? 3 : 1}
-          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''} ${isPulsing ? 'pulse-yellow' : ''}`}
+          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''} ${isPulsing ? pulseClass : ''}`}
         />
 
         {/* Sector label */}
@@ -184,21 +260,22 @@ function HexGrid({
           fill={colors.stroke}
           fontSize="12"
           fontWeight="bold"
+          pointerEvents="none"
         >
           {hex.label}
         </text>
 
         {/* Sector type indicator */}
         {hex.state === 'airlock' && (
-          <text x={x} y={y + 10} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#ffcc00">
+          <text x={x} y={y + 10} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#ffcc00" pointerEvents="none">
             {getEscapeHatchNumber(hex.label)}
           </text>
         )}
         {hex.state === 'human-start' && (
-          <text x={x} y={y + 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#00d9ff">H</text>
+          <text x={x} y={y + 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#00d9ff" pointerEvents="none">H</text>
         )}
         {hex.state === 'alien-start' && (
-          <text x={x} y={y + 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#e94560">A</text>
+          <text x={x} y={y + 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#e94560" pointerEvents="none">A</text>
         )}
 
         {/* My position marker */}
@@ -211,38 +288,32 @@ function HexGrid({
             stroke="#00d9ff"
             strokeWidth="2"
             className="position-marker"
+            pointerEvents="none"
           />
         )}
 
-        {/* Ghost tokens */}
+        {/* Ghost tokens - using component for Hooks */}
         {ghostsHere.map((playerId, idx) => {
           const { initials, color } = getPlayerDisplay(playerId);
           const offsetAngle = (idx / Math.max(ghostsHere.length, 1)) * Math.PI * 2;
           const tokenX = x + Math.cos(offsetAngle) * (HEX_SIZE * 0.3) * (ghostsHere.length > 1 ? 1 : 0);
           const tokenY = y + Math.sin(offsetAngle) * (HEX_SIZE * 0.3) * (ghostsHere.length > 1 ? 1 : 0);
 
+          const isDragging = dragState?.playerId === playerId;
+
           return (
-            <g key={playerId} className="ghost-token">
-              <circle
-                cx={tokenX}
-                cy={tokenY}
-                r={10}
-                fill={color}
-                fillOpacity="0.6"
-                stroke={color}
-                strokeWidth="2"
-              />
-              <text
-                x={tokenX}
-                y={tokenY + 3}
-                textAnchor="middle"
-                fontSize="8"
-                fill="white"
-                fontWeight="bold"
-              >
-                {initials}
-              </text>
-            </g>
+            <HexGhostToken
+              key={playerId}
+              playerId={playerId}
+              initials={initials}
+              color={color}
+              x={tokenX}
+              y={tokenY}
+              sector={hex.label}
+              onDragStart={onDragStart}
+              onTap={() => { }} // No tap action on map tokens for now
+              isDragging={isDragging}
+            />
           );
         })}
 
@@ -255,7 +326,7 @@ function HexGrid({
           const tokenY = y + Math.sin(offsetAngle) * (HEX_SIZE * 0.4) * (playersHere.length > 1 ? 1 : 0);
 
           return (
-            <g key={`real-${player.id}`} className="real-player-token">
+            <g key={`real-${player.id}`} className="real-player-token" style={{ pointerEvents: 'none' }}>
               <circle
                 cx={tokenX}
                 cy={tokenY}
@@ -277,6 +348,19 @@ function HexGrid({
             </g>
           );
         })}
+
+        {/* Skull Overlay for kills */}
+        {showSkull && (
+          <text
+            x={x}
+            y={y + 5}
+            textAnchor="middle"
+            className="skull-overlay"
+            pointerEvents="none"
+          >
+            💀
+          </text>
+        )}
       </g>
     );
   };
@@ -297,6 +381,9 @@ function HexGrid({
 
   // Handle pan
   const handleMouseDown = (e) => {
+    // Check if we hit a ghost token first (prevent pan if dragging token)
+    if (e.target.closest('.ghost-token')) return;
+
     // Allow left (0), middle (1), or right (2) click to pan
     if (e.button === 0 || e.button === 1 || e.button === 2) {
       setIsPanning(true);
@@ -310,7 +397,7 @@ function HexGrid({
       const dx = e.clientX - panStart.x;
       const dy = e.clientY - panStart.y;
 
-      // Accumulate drag distance (manhattan distance is good enough approximation for "is this a click")
+      // Accumulate drag distance
       dragDistance.current += Math.abs(dx) + Math.abs(dy);
 
       setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -343,6 +430,7 @@ function HexGrid({
         style={{
           transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`
         }}
+      // Add touch listeners for pan? (Need to be careful not to conflict with drag)
       >
         {/* Background pattern */}
         <defs>

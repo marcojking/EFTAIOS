@@ -17,7 +17,7 @@ function LogToast({ announcements }) {
         // Avoid duplicate toasts for the same event if re-renders happen
         setToasts(prev => {
             if (prev.some(t => t.id === id)) return prev;
-            return [...prev, { ...latest, id, expiresAt: Date.now() + 2000 }];
+            return [...prev, { ...latest, id, expiresAt: Date.now() + 6000 }];
         });
 
     }, [announcements]);

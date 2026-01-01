@@ -21,9 +21,56 @@
   }
 }
 
+@keyframes pulse-red {
+  0% {
+    fill: #4a1a1a;
+    stroke: #ff3333;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 5px rgba(255, 51, 51, 0.5));
+  }
+
+  50% {
+    fill: #6a1a1a;
+    stroke: #ff5555;
+    stroke-width: 4px;
+    filter: drop-shadow(0 0 15px rgba(255, 51, 51, 0.8));
+  }
+
+  100% {
+    fill: #4a1a1a;
+    stroke: #ff3333;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 5px rgba(255, 51, 51, 0.5));
+  }
+}
+
 .hex.pulse-yellow {
   animation: pulse-yellow 1s infinite;
   z-index: 10;
+}
+
+.hex.pulse-red {
+  animation: pulse-red 1s infinite;
+  z-index: 11;
+}
+
+.skull-overlay {
+  pointer-events: none;
+  font-size: 24px;
+  filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.8));
+  animation: skull-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes skull-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .hex-grid-container {

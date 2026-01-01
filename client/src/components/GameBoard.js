@@ -6,6 +6,7 @@ import PlayerHUD from './PlayerHUD';
 import CardModal from './CardModal';
 import PlayerTracker from './PlayerTracker';
 import LogToast from './LogToast';
+import DragOverlay from './DragOverlay';
 import './GameBoard.css';
 
 function GameBoard({
@@ -38,7 +39,102 @@ function GameBoard({
   const [playerGuesses, setPlayerGuesses] = useState({}); // Track player team guesses: { [playerId]: 'none' | 'human' | 'alien' }
   const [trackerWidth, setTrackerWidth] = useState(350); // Default width in px
   const [isResizing, setIsResizing] = useState(false);
-  const [pulsingSectors, setPulsingSectors] = useState(new Set()); // Set of sector labels pulsing
+  const [pulsingSectors, setPulsingSectors] = useState(new Map()); // Map<sector, { type: 'noise'|'attack', kill: boolean }>
+
+  // Drag & Drop State
+  const [dragState, setDragState] = useState(null); // { playerId, color, initials, originSector (null if bank) }
+  const [cursorPos, setCursorPos] = useState(null);
+
+  const handleDragStart = useCallback((data) => {
+    // data: { playerId, color, initials, originSector, startPos }
+    setDragState({
+      playerId: data.playerId,
+      color: data.color,
+      initials: data.initials,
+      originSector: data.originSector
+    });
+    setCursorPos(data.startPos);
+  }, []);
+
+  // Global Drag Move & End Handlers
+  const handleGlobalMove = useCallback((e) => {
+    if (dragState) {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      setCursorPos({ x: clientX, y: clientY });
+    }
+  }, [dragState]);
+
+  const handleGlobalEnd = useCallback((e) => {
+    if (dragState) {
+      const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.changedTouches[0].clientX || e.clientX;
+      const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.changedTouches[0].clientY || e.clientY;
+
+      // Drop Detection
+      // We need to find if we dropped on a hex
+      // Since DragOverlay has pointer-events: none, we can use elementFromPoint
+      const targetEl = document.elementFromPoint(clientX, clientY);
+      const hexGroup = targetEl?.closest('.hex-group');
+
+      let targetSector = null;
+      if (hexGroup) {
+        // We need to extract the sector label. 
+        // We'll trust the HexGrid to add a data-sector attribute to the group
+        targetSector = hexGroup.getAttribute('data-sector');
+      }
+
+      if (targetSector) {
+        // Dropped on a valid sector -> Move Ghost Token
+        setGhostTokens(prev => {
+          const newTokens = { ...prev };
+
+          // Remove from previous location if any
+          Object.keys(newTokens).forEach(key => {
+            newTokens[key] = newTokens[key].filter(id => id !== dragState.playerId);
+            if (newTokens[key].length === 0) delete newTokens[key];
+          });
+
+          // Add to new location
+          if (!newTokens[targetSector]) newTokens[targetSector] = [];
+          newTokens[targetSector].push(dragState.playerId);
+
+          return newTokens;
+        });
+      } else {
+        // Dropped in void -> Remove from map (return to bank)
+        // Only if it was previously on the map (originSector is not null) OR we just want void drop to always clear?
+        // The requirement says: "if a user moves it and drops it in blank space (no hex) it should go back to the top bar"
+        setGhostTokens(prev => {
+          const newTokens = { ...prev };
+          Object.keys(newTokens).forEach(key => {
+            newTokens[key] = newTokens[key].filter(id => id !== dragState.playerId);
+            if (newTokens[key].length === 0) delete newTokens[key];
+          });
+          return newTokens;
+        });
+      }
+
+      // Reset
+      setDragState(null);
+      setCursorPos(null);
+    }
+  }, [dragState]);
+
+  // Global Event Listeners for Drag
+  React.useEffect(() => {
+    if (dragState) {
+      window.addEventListener('mousemove', handleGlobalMove);
+      window.addEventListener('mouseup', handleGlobalEnd);
+      window.addEventListener('touchmove', handleGlobalMove, { passive: false });
+      window.addEventListener('touchend', handleGlobalEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMove);
+      window.removeEventListener('mouseup', handleGlobalEnd);
+      window.removeEventListener('touchmove', handleGlobalMove);
+      window.removeEventListener('touchend', handleGlobalEnd);
+    };
+  }, [dragState, handleGlobalMove, handleGlobalEnd]);
 
   // Watch for new announcements to trigger visual effects (pulse)
   React.useEffect(() => {
@@ -47,33 +143,47 @@ function GameBoard({
     const latest = gameState.announcements[gameState.announcements.length - 1];
 
     // Check if we should pulse (prevent re-pulsing old events on re-render by checking timestamp)
-    // A simple way is to trust that strict mode/re-renders wont double-trigger visuals too badly,
-    // or use a ref to track processed announcement ID. For now, simple check.
     if (Date.now() - latest.timestamp < 3000) { // Only pulse if event is fresh (< 3s)
       if (latest.type === 'NOISE' || latest.type === 'NOISE_ECHO' || latest.type === 'CAT') {
         let sectorsToPulse = [];
         if (latest.sector) sectorsToPulse.push(latest.sector);
-        if (latest.sectors) sectorsToPulse.push(...latest.sectors); // For CAT or multi-sector noise
+        if (latest.sectors) sectorsToPulse.push(...latest.sectors);
 
         if (sectorsToPulse.length > 0) {
           setPulsingSectors(prev => {
-            const next = new Set(prev);
-            sectorsToPulse.forEach(s => next.add(s));
+            const next = new Map(prev);
+            // Ensure compatibility if prev was a Set (during migration)
+            if (prev instanceof Set) {
+              prev.forEach(s => next.set(s, { type: 'noise', kill: false }));
+            }
+
+            sectorsToPulse.forEach(s => next.set(s, { type: 'noise', kill: false }));
             return next;
           });
+        }
+      } else if (latest.type === 'ATTACK') {
+        // Red flash for attacks
+        if (latest.sector) {
+          const kill = latest.victims && latest.victims.length > 0;
+          setPulsingSectors(prev => {
+            const next = new Map(prev);
+            // Ensure compatibility if prev was a Set
+            if (prev instanceof Set) {
+              prev.forEach(s => next.set(s, { type: 'noise', kill: false }));
+            }
 
-          // Remove pulse after 3 seconds
-          setTimeout(() => {
-            setPulsingSectors(prev => {
-              const next = new Set(prev);
-              sectorsToPulse.forEach(s => next.delete(s));
-              return next;
-            });
-          }, 3000);
+            next.set(latest.sector, { type: 'attack', kill: kill });
+            return next;
+          });
         }
       }
     }
   }, [gameState?.announcements]);
+
+  // Clear pulsing sectors when turn changes (current player changes)
+  React.useEffect(() => {
+    setPulsingSectors(new Map());
+  }, [gameState?.currentPlayerId]);
 
   // Host is never "playing" - they're spectating
   const startResizing = useCallback((e) => {
@@ -354,6 +464,9 @@ function GameBoard({
         isHost={isHost}
         playerGuesses={playerGuesses}
         onToggleGuess={handleToggleGuess}
+        // Drag props
+        dragState={dragState}
+        onDragStart={handleDragStart}
       />
 
       {/* Main Content Area */}
@@ -420,6 +533,9 @@ function GameBoard({
               onHexClick={handleHexClick}
               highlightMode={getHighlightMode()}
               pulsingSectors={pulsingSectors}
+              // Drag props
+              dragState={dragState}
+              onDragStart={handleDragStart}
             />
 
             {/* Action Buttons */}
@@ -560,6 +676,13 @@ function GameBoard({
             </div>
           </div>
         </div>
+      )}
+      {/* Drag Overlay */}
+      {dragState && (
+        <DragOverlay
+          dragItem={dragState}
+          cursorPos={cursorPos}
+        />
       )}
     </div>
   );

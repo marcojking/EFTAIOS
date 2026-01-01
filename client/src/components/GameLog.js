@@ -4,10 +4,10 @@ import './GameLog.css';
 function GameLog({ announcements }) {
   const logRef = useRef(null);
 
-  // Auto-scroll to bottom when new announcements arrive
+  // Auto-scroll to top when new announcements arrive (since newest are at top)
   useEffect(() => {
     if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
+      logRef.current.scrollTop = 0;
     }
   }, [announcements]);
 
@@ -56,7 +56,7 @@ function GameLog({ announcements }) {
           </div>
         )}
 
-        {announcements?.map((announcement, index) => (
+        {[...(announcements || [])].reverse().map((announcement, index) => (
           <div
             key={index}
             className={`log-entry ${getAnnouncementClass(announcement.type)}`}

@@ -508,59 +508,12 @@
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
+    display: flex;
   }
 
   .game-main {
-    flex-direction: column;
-    overflow: visible;
-    height: auto;
-  }
-
-  .game-board.with-tracker .game-main {
-    flex: unset;
-  }
-
-  .game-board.with-tracker .tracker-panel {
-    flex: unset;
-    max-width: 100%;
-    min-width: unset;
-  }
-
-  /* Turn Indicator - Make it sticky on mobile */
-  .turn-indicator {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    padding: 12px 15px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .turn-number {
-    font-size: 0.9rem;
-    padding: 4px 10px;
-  }
-
-  .current-player {
-    font-size: 1.1rem;
-    flex: 1 1 100%;
-    text-align: center;
-  }
-
-  .current-player.highlight {
-    font-size: 1.2rem;
-  }
-
-  .toggle-buttons {
-    flex: 1 1 100%;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .toggle-btn {
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    min-width: 80px;
+    display: contents;
+    /* Flattens the element so children are part of parent flex container */
   }
 
   /* Center map area */
@@ -571,29 +524,32 @@
     overflow: visible;
   }
 
+  /* Tracker panel - appears right after board on mobile */
+  .tracker-panel {
+    order: 2;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100% !important;
+    /* Force full width on mobile */
+  }
+
   /* Sidebars become collapsible panels */
   .game-sidebar {
     width: 100%;
     max-height: none;
     height: auto;
-    order: 2;
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     overflow: visible;
   }
 
-  /* Tracker panel - appears right after board on mobile */
-  .tracker-panel {
-    order: 2;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  .game-sidebar.right {
+    order: 3;
+    /* Log is third */
   }
 
   .game-sidebar.left {
-    order: 3;
-  }
-
-  .game-sidebar.right {
     order: 4;
+    /* HUD is last */
   }
 
   /* Action buttons - make them bigger and fixed at bottom */

@@ -258,22 +258,18 @@ class GameState {
         return { success: true, skippedCard: true };
       }
 
-      // Captain's "First Safe" power - skip first dangerous card, announce silence
+      // Captain's "First Safe" power - skip first dangerous card, announce silence (masquerade as Safe Sector)
       if (player.character?.power?.id === 'first_safe' && player.powerUsage?.firstSafeAvailable) {
         player.powerUsage.firstSafeAvailable = false;
+
+        // Removed POWER_USED announcement to keep it secret
+
+        // Announce as a regular Silent Move (Safe Sector)
         this.addAnnouncement({
-          type: 'POWER_USED',
+          type: 'SILENT_MOVE',
           playerId: player.id,
           playerName: player.name,
-          power: 'First Safe',
-          message: `${player.name} (Captain) used First Safe!`
-        });
-        // Announce silence as if stepping on a safe sector
-        this.addAnnouncement({
-          type: 'SILENCE',
-          playerId: player.id,
-          playerName: player.name,
-          message: `${player.name}: Silence in all sectors.`
+          message: `${player.name} moved silently.`
         });
         this.endTurn();
         return { success: true, powerUsed: 'first_safe' };
@@ -529,13 +525,14 @@ class GameState {
       if (usePower && hasSoldierPower) {
         // Use Soldier's free attack
         player.powerUsage.usesRemaining--;
-        this.addAnnouncement({
-          type: 'POWER_USED',
-          playerId: player.id,
-          playerName: player.name,
-          power: 'Free Attack',
-          message: `${player.name} (Soldier) uses Free Attack!`
-        });
+        // Silent consumption - appears as normal attack
+        // this.addAnnouncement({
+        //   type: 'POWER_USED',
+        //   playerId: player.id,
+        //   playerName: player.name,
+        //   power: 'Free Attack',
+        //   message: `${player.name} (Soldier) uses Free Attack!`
+        // });
       } else if (hasAttackItem) {
         // Remove the attack item
         const attackItemIndex = player.items.findIndex(item => item.type === 'ATTACK');
@@ -751,13 +748,14 @@ class GameState {
 
       if (usePower && hasSoldierPower) {
         player.powerUsage.usesRemaining--;
-        this.addAnnouncement({
-          type: 'POWER_USED',
-          playerId: player.id,
-          playerName: player.name,
-          power: 'Free Attack',
-          message: `${player.name} (Soldier) uses Free Attack!`
-        });
+        // Silent consumption
+        // this.addAnnouncement({
+        //   type: 'POWER_USED',
+        //   playerId: player.id,
+        //   playerName: player.name,
+        //   power: 'Free Attack',
+        //   message: `${player.name} (Soldier) uses Free Attack!`
+        // });
       } else if (hasAttackItem) {
         const attackItemIndex = player.items.findIndex(item => item.type === 'ATTACK');
         player.items.splice(attackItemIndex, 1);
@@ -918,13 +916,14 @@ class GameState {
       // Consume item
       player.items.splice(catItemIndex, 1);
 
-      this.addAnnouncement({
-        type: 'ITEM_USED',
-        playerId: player.id,
-        playerName: player.name,
-        itemType: 'CAT',
-        message: `${player.name} uses Cat card: declare noise in two sectors.`
-      });
+      // SILENT item usage to prevent revealing source
+      // this.addAnnouncement({
+      //   type: 'ITEM_USED',
+      //   playerId: player.id,
+      //   playerName: player.name,
+      //   itemType: 'CAT',
+      //   message: `${player.name} uses Cat card: declare noise in two sectors.`
+      // });
 
       // First noise is at player's ACTUAL position, second is chosen
       // Set pending action for second noise selection
@@ -952,13 +951,14 @@ class GameState {
 
       player.powerUsage.usesRemaining--;
 
-      this.addAnnouncement({
-        type: 'POWER_USED',
-        playerId: player.id,
-        playerName: player.name,
-        power: 'Double Noise',
-        message: `${player.name} (Pilot) uses Double Noise!`
-      });
+      // SILENT power usage
+      // this.addAnnouncement({
+      //   type: 'POWER_USED',
+      //   playerId: player.id,
+      //   playerName: player.name,
+      //   power: 'Double Noise',
+      //   message: `${player.name} (Pilot) uses Double Noise!`
+      // });
 
       return { success: true, requiresSecondNoise: true, firstSector: player.position };
     }
@@ -1000,33 +1000,17 @@ class GameState {
 
     const firstSector = this.pendingAction.firstSector;
 
-    // Announce both noises
+    // Announce both noises together to obscure source (Cat vs Pilot)
     this.addAnnouncement({
       type: 'NOISE',
       playerId: player.id,
       playerName: player.name,
-      sector: firstSector,
-      message: `${player.name}: Noise in sector ${firstSector}.`
+      sectors: [firstSector, sector], // Pass both sectors
+      message: `${player.name}: Noise in sectors ${firstSector} and ${sector}.`
     });
 
-    this.addAnnouncement({
-      type: 'NOISE',
-      playerId: player.id,
-      playerName: player.name,
-      sector: sector,
-      message: `${player.name}: Noise in sector ${sector}.`
-    });
-
-    // For Cat item, also add the CAT announcement
-    if (this.pendingAction.type === 'CAT_NOISE') {
-      this.addAnnouncement({
-        type: 'CAT',
-        playerId: player.id,
-        playerName: player.name,
-        sectors: [firstSector, sector],
-        message: `${player.name} used Cat - noise in ${firstSector} and ${sector}!`
-      });
-    }
+    // We do NOT add separate NOISE announcements or a CAT announcement anymore
+    // to keep the source ambiguous as requested.
 
     this.pendingAction = null;
     this.endTurn();
@@ -1262,13 +1246,14 @@ class GameState {
       player.position = humanStart.label;
     }
 
-    this.addAnnouncement({
-      type: 'POWER_USED',
-      playerId: player.id,
-      playerName: player.name,
-      power: 'Free Teleport',
-      message: `${player.name} (Co-Pilot) teleported to Human Sector! They may still move this turn.`
-    });
+    // Silent teleport - no announcement
+    // this.addAnnouncement({
+    //   type: 'POWER_USED',
+    //   playerId: player.id,
+    //   playerName: player.name,
+    //   power: 'Free Teleport',
+    //   message: `${player.name} (Co-Pilot) teleported to Human Sector! They may still move this turn.`
+    // });
 
     // NOTE: Do NOT end turn - player can still move normally from Human Sector
     return { success: true, teleportedTo: humanStart?.label };
@@ -1315,7 +1300,10 @@ class GameState {
       targetRole: target.role,
       targetCharacter: characterName,
       targetPower: powerName,
-      message: `${player.name} (Medic) revealed ${target.name}'s identity!`
+      // Updated message as requested: "Medic revealed [target] is a [role]"
+      // Note: The medic is revealed by the fact that they used the power, which the client knows.
+      // The message explicitly states the target's role now.
+      message: `${player.name} (Medic) revealed that ${target.name} is a ${target.role.toUpperCase()}!`
     });
 
     // Broadcast popup to ALL players

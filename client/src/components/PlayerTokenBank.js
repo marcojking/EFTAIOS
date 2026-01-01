@@ -1,5 +1,72 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
+import { useTokenDrag } from '../hooks/useTokenDrag';
 import './PlayerTokenBank.css';
+
+function PlayerToken({ player, isCurrent, isPlaced, isSelectedToken, isHost, onGhostSelect, onToggleGuess, getPlayerInfo, dragState, onDragStart }) {
+  const { initials, color, bgColor, status } = getPlayerInfo(player);
+
+  // Custom Hook for Drag & Tap
+  const { handlers } = useTokenDrag({
+    playerId: player.id,
+    holdDuration: 300,
+    onDragStart: (pid, startPos) => {
+      // Trigger global drag start
+      onDragStart({
+        playerId: pid,
+        color: color,
+        initials: initials,
+        originSector: null, // From Bank
+        startPos: startPos
+      });
+    },
+    onTap: (pid) => {
+      // Tap -> Toggle Guess (or Select if host/no guess logic)
+      if (isHost) {
+        onGhostSelect(pid);
+      } else {
+        onToggleGuess(pid);
+      }
+    }
+  });
+
+  // If this token is currently being dragged, hide it (opacity 0 OR dim it)
+  const isDraggingMe = dragState?.playerId === player.id;
+
+  return (
+    <div className={`player-token-wrapper ${isCurrent ? 'current-turn' : ''} ${status}`}>
+      {/* Main token */}
+      <div
+        className={`player-token ${isSelectedToken ? 'selected' : ''} ${isPlaced ? 'placed' : ''}`}
+        style={{
+          borderColor: color,
+          backgroundColor: bgColor,
+          color: color,
+          opacity: isDraggingMe ? 0.2 : 1, // Dim when dragging
+          cursor: isPlaced ? 'default' : 'grab'
+        }}
+        {...handlers} // Attach Mouse/Touch handlers
+        title={`${player.name}${isCurrent ? ' (Current Turn)' : ''}${!isHost ? ' | Tap to change guess, Hold to drag' : ''}`}
+      >
+        <span className="token-initials">{initials}</span>
+        {isCurrent && <span className="turn-indicator-dot" />}
+      </div>
+
+      {/* Player name */}
+      <span className="player-name" style={{ color }}>
+        {player.name}
+      </span>
+
+      {/* Status badges */}
+      <div className="status-badges">
+        {status === 'dead' && <span className="badge dead">DEAD</span>}
+        {status === 'escaped' && <span className="badge escaped">ESCAPED</span>}
+        {isPlaced && status === 'active' && (
+          <span className="badge placed">ON MAP</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function PlayerTokenBank({
   players,
@@ -7,16 +74,14 @@ function PlayerTokenBank({
   selectedGhostPlayer,
   placedGhostPlayerIds,
   onGhostSelect,
-  onGhostRemove,
   isHost,
   playerGuesses = {},
-  onToggleGuess
+  onToggleGuess,
+  dragState,
+  onDragStart
 }) {
-  // Long-press detection for mobile
-  const [longPressTriggered, setLongPressTriggered] = useState(false);
-  const longPressTimerRef = useRef(null);
-  const longPressDuration = 500; // 500ms hold to trigger
-  // Get player display info
+
+  // Get player display info - UPDATED COLOR LOGIC
   const getPlayerInfo = (player) => {
     const initials = player.name
       .split(' ')
@@ -32,20 +97,20 @@ function PlayerTokenBank({
     if (isHost) {
       // Host can see actual roles
       if (player.role === 'human') {
-        color = '#00d9ff';
+        color = '#00d9ff'; // Blue
         bgColor = 'rgba(0, 217, 255, 0.2)';
       } else {
-        color = '#e94560';
+        color = '#e94560'; // Red
         bgColor = 'rgba(233, 69, 96, 0.2)';
       }
     } else {
       // Non-host players use their own guesses
       const guess = playerGuesses[player.id] || 'none';
       if (guess === 'human') {
-        color = '#00ff88';  // Green for suspected human
-        bgColor = 'rgba(0, 255, 136, 0.2)';
+        color = '#00d9ff';  // BLUE for human (was green)
+        bgColor = 'rgba(0, 217, 255, 0.2)';
       } else if (guess === 'alien') {
-        color = '#e94560';  // Red for suspected alien
+        color = '#e94560';  // RED for alien
         bgColor = 'rgba(233, 69, 96, 0.2)';
       }
       // else stays gray (no guess)
@@ -63,118 +128,29 @@ function PlayerTokenBank({
   const isPlacedOnBoard = (playerId) => placedGhostPlayerIds.has(playerId);
   const isSelected = (playerId) => selectedGhostPlayer === playerId;
 
-  // Mobile long-press handlers
-  const handleTouchStart = (playerId) => {
-    if (isHost || !onToggleGuess) return;
-
-    setLongPressTriggered(false);
-    longPressTimerRef.current = setTimeout(() => {
-      setLongPressTriggered(true);
-      onToggleGuess(playerId);
-      // Optional: add haptic feedback if available
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, longPressDuration);
-  };
-
-  const handleTouchEnd = (playerId, e) => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-    }
-
-    // If long-press was triggered, prevent the click event
-    if (longPressTriggered) {
-      e.preventDefault();
-      setLongPressTriggered(false);
-    } else {
-      // Normal tap - select ghost token
-      onGhostSelect(playerId);
-    }
-  };
-
-  const handleTouchCancel = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-    }
-    setLongPressTriggered(false);
-  };
-
   return (
     <div className="player-token-bank">
       <div className="token-bank-label">
         <span>Players</span>
-        {selectedGhostPlayer && (
-          <span className="placing-hint">Click map to place token</span>
-        )}
+        <span className="placing-hint" style={{ fontSize: '0.65rem', color: '#888', marginTop: '2px' }}>Hold to Drag</span>
       </div>
 
       <div className="token-list">
-        {players?.map(player => {
-          const { initials, color, bgColor, status } = getPlayerInfo(player);
-          const isCurrent = isCurrentTurn(player.id);
-          const isPlaced = isPlacedOnBoard(player.id);
-          const isSelectedToken = isSelected(player.id);
-
-          return (
-            <div
-              key={player.id}
-              className={`player-token-wrapper ${isCurrent ? 'current-turn' : ''} ${status}`}
-            >
-              {/* Main token */}
-              <button
-                className={`player-token ${isSelectedToken ? 'selected' : ''} ${isPlaced ? 'placed' : ''}`}
-                style={{
-                  borderColor: color,
-                  backgroundColor: bgColor,
-                  color: color
-                }}
-                onClick={() => {
-                  // Only trigger if not a long-press
-                  if (!longPressTriggered) {
-                    onGhostSelect(player.id);
-                  }
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  if (!isHost && onToggleGuess) {
-                    onToggleGuess(player.id);
-                  }
-                }}
-                onTouchStart={() => handleTouchStart(player.id)}
-                onTouchEnd={(e) => handleTouchEnd(player.id, e)}
-                onTouchCancel={handleTouchCancel}
-                title={`${player.name}${isCurrent ? ' (Current Turn)' : ''}${!isHost ? ' | Right-click or long-press to mark guess' : ''}`}
-              >
-                <span className="token-initials">{initials}</span>
-                {isCurrent && <span className="turn-indicator-dot" />}
-              </button>
-
-              {/* Player name */}
-              <span className="player-name" style={{ color }}>
-                {player.name}
-              </span>
-
-              {/* Status badges */}
-              <div className="status-badges">
-                {status === 'dead' && <span className="badge dead">DEAD</span>}
-                {status === 'escaped' && <span className="badge escaped">ESCAPED</span>}
-                {isPlaced && status === 'active' && (
-                  <button
-                    className="badge placed"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onGhostRemove(player.id);
-                    }}
-                    title="Remove from map"
-                  >
-                    ON MAP ×
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {players?.map(player => (
+          <PlayerToken
+            key={player.id}
+            player={player}
+            isCurrent={isCurrentTurn(player.id)}
+            isPlaced={isPlacedOnBoard(player.id)}
+            isSelectedToken={isSelected(player.id)}
+            isHost={isHost}
+            onGhostSelect={onGhostSelect}
+            onToggleGuess={onToggleGuess}
+            getPlayerInfo={getPlayerInfo}
+            dragState={dragState}
+            onDragStart={onDragStart}
+          />
+        ))}
       </div>
 
       {isHost && (
@@ -188,3 +164,4 @@ function PlayerTokenBank({
 }
 
 export default PlayerTokenBank;
+
