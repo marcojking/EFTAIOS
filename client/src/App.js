@@ -155,6 +155,7 @@ function App() {
           onStartGame={handleStartGame}
           currentPlayerId={playerState.id}
           roomCode={playerState.roomCode} // Pass room code to display
+          connected={isConnected}
         />
       )}
 

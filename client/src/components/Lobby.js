@@ -74,7 +74,7 @@ function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastM
 
         <div className="server-info">
           <span className="label">Room Code:</span>
-          <span className="value room-code">{isHost ? (lastMessage?.roomCode || 'Loading...') : (lastMessage?.roomCode || 'Unknown')}</span>
+          <span className="value room-code">{roomCode || 'Loading...'}</span>
           <span className="label">You:</span>
           <span className="value">{playerName} {isHost && '(Host)'}</span>
         </div>
@@ -103,7 +103,7 @@ function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastM
                 <h3>📱 Invite Players</h3>
                 <p>Share this code with your friends:</p>
                 <div className="room-code-display">
-                  <code>{lastMessage?.roomCode || '...'}</code>
+                  <code>{roomCode || '...'}</code>
                 </div>
                 <p className="join-note">
                   Players should click <strong>"Join Room"</strong> and enter this code.
