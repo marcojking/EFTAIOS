@@ -1,0 +1,360 @@
+.lobby-screen {
+  min-height: 100vh;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lobby-container {
+  width: 100%;
+  max-width: 900px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.lobby-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.connection-status {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.connection-status.connected {
+  background: rgba(46, 213, 115, 0.2);
+  color: #2ed573;
+}
+
+.connection-status.disconnected {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+  animation: pulse 1.5s infinite;
+}
+
+.server-info {
+  display: flex;
+  gap: 10px;
+  padding: 12px 25px;
+  background: rgba(0, 0, 0, 0.1);
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.server-info .label {
+  color: #888;
+}
+
+.server-info .value {
+  color: #00d9ff;
+  margin-right: 20px;
+}
+
+.lobby-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  padding: 25px;
+}
+
+@media (max-width: 700px) {
+  .lobby-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Players Section */
+.players-section h2,
+.settings-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.players-list {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 10px;
+  min-height: 150px;
+}
+
+.player-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.player-item:last-child {
+  margin-bottom: 0;
+}
+
+.player-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 217, 255, 0.2);
+  color: #00d9ff;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-right: 12px;
+}
+
+.player-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.player-status {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.player-status.ready {
+  background: rgba(46, 213, 115, 0.2);
+  color: #2ed573;
+}
+
+.no-players {
+  padding: 30px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.join-instructions {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(0, 217, 255, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 217, 255, 0.2);
+}
+
+.join-instructions.host-instructions {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.15) 0%, rgba(233, 69, 96, 0.1) 100%);
+  border: 2px solid rgba(0, 217, 255, 0.3);
+  padding: 20px;
+}
+
+.join-instructions h3 {
+  font-size: 1rem;
+  margin-bottom: 15px;
+  color: #00d9ff;
+}
+
+.join-instructions p {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-bottom: 8px;
+}
+
+.join-instructions code {
+  display: block;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-family: 'Consolas', monospace;
+  color: #fff;
+  word-break: break-all;
+}
+
+/* Step-by-step join instructions */
+.join-steps {
+  margin-bottom: 15px;
+}
+
+.join-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.join-step .step-number {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 217, 255, 0.3);
+  color: #00d9ff;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.join-step .step-text {
+  color: #ccc;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.join-url-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.join-url-box .join-url {
+  flex: 1;
+  padding: 14px 18px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(0, 217, 255, 0.4);
+  border-radius: 8px;
+  font-family: 'Consolas', monospace;
+  font-size: 1.1rem;
+  color: #00d9ff;
+  text-align: center;
+}
+
+.join-url-box .copy-btn {
+  padding: 14px 16px;
+  background: rgba(0, 217, 255, 0.2);
+  border: 2px solid rgba(0, 217, 255, 0.4);
+  border-radius: 8px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.join-url-box .copy-btn:hover {
+  background: rgba(0, 217, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.join-note {
+  font-size: 0.85rem !important;
+  color: #888 !important;
+  text-align: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin-bottom: 0 !important;
+}
+
+.join-note strong {
+  color: #ffcc00;
+}
+
+/* Settings Section */
+.setting-group {
+  margin-bottom: 20px;
+}
+
+.setting-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.setting-group select {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.setting-group select:focus {
+  border-color: #00d9ff;
+  outline: none;
+}
+
+.map-preview {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.map-info h4 {
+  color: #e94560;
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+}
+
+.map-info p {
+  color: #aaa;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.map-info .player-rec {
+  margin-top: 10px;
+  color: #00d9ff;
+  font-weight: 500;
+}
+
+.start-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.start-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff5a75 0%, #e94560 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(233, 69, 96, 0.4);
+}
+
+.start-btn:disabled {
+  background: #444;
+}
+
+/* Waiting Section */
+.waiting-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  text-align: center;
+}
+
+.waiting-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  animation: pulse 2s infinite;
+}
+
+.waiting-section p {
+  color: #888;
+  font-size: 1.1rem;
+}

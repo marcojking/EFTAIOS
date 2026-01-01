@@ -1,0 +1,474 @@
+.game-board {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.game-content-wrapper {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.game-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  transition: flex 0.3s ease;
+}
+
+/* When tracker is open, game takes 75%, tracker takes 25% */
+.game-board.with-tracker .game-main {
+  flex: 3;
+}
+
+.game-board.with-tracker .tracker-panel {
+  flex: 1;
+  max-width: 25%;
+  min-width: 280px;
+}
+
+/* Tracker Panel */
+.tracker-panel {
+  display: flex;
+  flex-direction: column;
+  background: #0a0a15;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Tracker Toggle Button */
+.tracker-toggle {
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #aaa;
+  font-size: 0.85rem;
+  margin-left: auto;
+  transition: all 0.2s ease;
+}
+
+.tracker-toggle:hover {
+  background: rgba(0, 217, 255, 0.2);
+  border-color: #00d9ff;
+  color: #00d9ff;
+}
+
+.tracker-toggle.active {
+  background: rgba(0, 217, 255, 0.3);
+  border-color: #00d9ff;
+  color: #00d9ff;
+}
+
+.game-sidebar {
+  width: 280px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
+}
+
+.game-sidebar.left {
+  border-right: none;
+  border-left: none;
+}
+
+.game-sidebar.right {
+  border-left: none;
+  border-right: none;
+}
+
+.game-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Turn Indicator */
+.turn-indicator {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.turn-indicator.my-turn {
+  background: linear-gradient(90deg, rgba(0, 217, 255, 0.15) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 217, 255, 0.15) 100%);
+  border-bottom: 2px solid #00d9ff;
+  animation: turn-pulse 2s infinite;
+}
+
+@keyframes turn-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 4px 15px rgba(0, 217, 255, 0.1);
+  }
+
+  50% {
+    box-shadow: 0 4px 25px rgba(0, 217, 255, 0.3);
+  }
+}
+
+.turn-number {
+  font-size: 1rem;
+  color: #888;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 5px 12px;
+  border-radius: 15px;
+}
+
+.current-player {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.current-player.highlight {
+  color: #00d9ff;
+  text-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
+  font-size: 1.6rem;
+  animation: text-glow 1.5s infinite alternate;
+}
+
+@keyframes text-glow {
+  from {
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
+  }
+
+  to {
+    text-shadow: 0 0 20px rgba(0, 217, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.8);
+  }
+}
+
+.toggle-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.toggle-btn {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #888;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.toggle-btn.active {
+  background: rgba(0, 217, 255, 0.2);
+  border-color: #00d9ff;
+  color: #00d9ff;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.2);
+}
+
+/* Action Buttons */
+.action-buttons {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 15px;
+  z-index: 100;
+}
+
+.action-btn {
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.attack-btn {
+  background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+  color: white;
+}
+
+.attack-btn:hover {
+  background: linear-gradient(135deg, #ff5a75 0%, #e94560 100%);
+  box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+}
+
+/* Noise Select Overlay */
+.noise-select-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 500;
+}
+
+.noise-select-message {
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 30px;
+  background: rgba(233, 69, 96, 0.9);
+  color: white;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  animation: pulse 1.5s infinite;
+  pointer-events: auto;
+}
+
+/* Target Selection Modal */
+.target-select-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.target-select-modal {
+  background: #1a1a2e;
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-radius: 12px;
+  padding: 25px;
+  min-width: 300px;
+  text-align: center;
+}
+
+.target-select-modal h3 {
+  margin: 0 0 20px 0;
+  color: #00d9ff;
+  font-size: 1.1rem;
+}
+
+.target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.target-btn {
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.target-btn:hover {
+  background: rgba(0, 217, 255, 0.2);
+  border-color: #00d9ff;
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  background: rgba(233, 69, 96, 0.2);
+  border: 1px solid rgba(233, 69, 96, 0.5);
+  border-radius: 6px;
+  color: #e94560;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  background: rgba(233, 69, 96, 0.3);
+}
+
+/* Escape Card Choice Modal */
+.escape-choice-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.escape-choice-modal {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+}
+
+.escape-choice-modal h3 {
+  margin: 0 0 10px 0;
+  color: #00d9ff;
+  font-size: 1.2rem;
+}
+
+.escape-choice-modal p {
+  margin: 0 0 25px 0;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.escape-cards {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.escape-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 25px 35px;
+  border-radius: 12px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.escape-card-btn.working {
+  background: rgba(46, 213, 115, 0.2);
+  border: 2px solid #2ed573;
+  color: #2ed573;
+}
+
+.escape-card-btn.working:hover {
+  background: rgba(46, 213, 115, 0.3);
+  transform: scale(1.05);
+}
+
+.escape-card-btn.damaged {
+  background: rgba(233, 69, 96, 0.2);
+  border: 2px solid #e94560;
+  color: #e94560;
+}
+
+.escape-card-btn.damaged:hover {
+  background: rgba(233, 69, 96, 0.3);
+  transform: scale(1.05);
+}
+
+.escape-card-btn .card-icon {
+  font-size: 2rem;
+}
+
+.escape-card-btn .card-label {
+  font-weight: 600;
+}
+
+/* Lurking Attack Button */
+.action-btn.lurking {
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+}
+
+.action-btn.lurking:hover {
+  background: linear-gradient(135deg, #a569bd 0%, #9b59b6 100%);
+  box-shadow: 0 0 20px rgba(155, 89, 182, 0.5);
+}
+
+/* Prime Attack Button */
+.prime-attack-btn {
+  background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+  color: white;
+  min-width: 180px;
+}
+
+.prime-attack-btn:hover {
+  background: linear-gradient(135deg, #f5b041 0%, #f39c12 100%);
+  box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+}
+
+.prime-attack-btn.primed {
+  background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+  animation: primed-pulse 1s infinite;
+  min-width: 320px;
+}
+
+.prime-attack-btn.primed:hover {
+  background: linear-gradient(135deg, #ff5a75 0%, #e94560 100%);
+}
+
+@keyframes primed-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 25px rgba(233, 69, 96, 0.8), 0 0 40px rgba(233, 69, 96, 0.4);
+  }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .game-sidebar {
+    width: 220px;
+  }
+}
+
+@media (max-width: 900px) {
+  .game-main {
+    flex-direction: column;
+  }
+
+  .game-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+  }
+
+  .game-sidebar.left {
+    order: 2;
+  }
+
+  .game-sidebar.right {
+    order: 3;
+  }
+
+  .game-center {
+    order: 1;
+    min-height: 50vh;
+  }
+}

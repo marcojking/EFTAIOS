@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:boardgamegeek.com)",
+      "WebFetch(domain:www.eftaios.com)",
+      "WebFetch(domain:www.ospreypublishing.com)",
+      "Bash(npm run install-all:*)",
+      "Bash(cat:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)"
+    ]
+  }
+}

@@ -1,0 +1,215 @@
+.player-token-bank {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.token-bank-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 80px;
+}
+
+.token-bank-label span:first-child {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #666;
+}
+
+.placing-hint {
+  font-size: 0.7rem;
+  color: #e94560;
+  animation: pulse 1s infinite;
+}
+
+.token-list {
+  display: flex;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.player-token-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 70px;
+}
+
+.player-token-wrapper.current-turn {
+  transform: scale(1.1);
+}
+
+.player-token-wrapper.dead {
+  opacity: 0.4;
+}
+
+.player-token-wrapper.escaped {
+  opacity: 0.7;
+}
+
+/* Token button */
+.player-token {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.player-token:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px currentColor;
+}
+
+.player-token.selected {
+  animation: selected-pulse 1s infinite;
+  box-shadow: 0 0 20px currentColor;
+}
+
+@keyframes selected-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 15px currentColor;
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 25px currentColor;
+  }
+}
+
+.player-token.placed {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.player-token.placed:hover {
+  opacity: 0.8;
+}
+
+.token-initials {
+  pointer-events: none;
+}
+
+.turn-indicator-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  background: #00d9ff;
+  border-radius: 50%;
+  border: 2px solid #1a1a2e;
+  animation: pulse 1.5s infinite;
+}
+
+/* Player name */
+.player-name {
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70px;
+  text-align: center;
+}
+
+/* Status badges */
+.status-badges {
+  display: flex;
+  gap: 4px;
+}
+
+.badge {
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge.dead {
+  background: rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+}
+
+.badge.escaped {
+  background: rgba(46, 213, 115, 0.3);
+  color: #2ed573;
+}
+
+.badge.placed {
+  background: rgba(255, 255, 255, 0.1);
+  color: #aaa;
+  cursor: pointer;
+  border: none;
+}
+
+.badge.placed:hover {
+  background: rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+}
+
+/* Host indicator */
+.host-indicator {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.host-badge {
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.host-hint {
+  font-size: 0.65rem;
+  color: #888;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .player-token-bank {
+    padding: 10px 15px;
+    gap: 10px;
+  }
+
+  .player-token {
+    width: 38px;
+    height: 38px;
+    font-size: 0.8rem;
+  }
+
+  .player-token-wrapper {
+    min-width: 55px;
+  }
+
+  .player-name {
+    font-size: 0.6rem;
+    max-width: 55px;
+  }
+
+  .token-bank-label {
+    min-width: 60px;
+  }
+}
