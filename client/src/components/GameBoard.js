@@ -148,13 +148,13 @@ function GameBoard({
   }, [onDeclareNoise, onCardDismiss]);
 
   // Declare noise in current sector (for NOISE_YOUR_SECTOR)
-  const handleDeclareNoiseHere = useCallback(() => {
+  const handleDeclareNoiseHere = useCallback((useCat = false) => {
     // Use the explicit targetSector passed from server when the card was drawn
     // This ensures we always declare noise in the sector we moved INTO, not FROM
     const targetSector = drawnCard?.targetSector || gameState?.pendingAction?.sector || myPlayer?.position;
 
     if (targetSector) {
-      onDeclareNoise(targetSector, false);
+      onDeclareNoise(targetSector, false, false, useCat);
       setNoiseDeclarationSector(null);
       onCardDismiss && onCardDismiss();
     }

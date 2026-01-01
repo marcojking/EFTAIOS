@@ -1,40 +1,28 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 function useWebSocket() {
-  const [connected, setConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
+  const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
+
   const wsRef = useRef(null);
   const urlRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const pendingMessagesRef = useRef([]);
-  const isConnectingRef = useRef(false);
 
   const connect = useCallback((url) => {
     // Prevent multiple simultaneous connection attempts
-    if (isConnectingRef.current) {
-      console.log('Already connecting, skipping...');
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+      console.log('Already connected or connecting, skipping...');
       return;
     }
 
     // Store URL for reconnection
     urlRef.current = url;
     setError(null);
-
-    // Close existing connection cleanly
-    if (wsRef.current) {
-      wsRef.current.onclose = null; // Prevent reconnect loop
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-
-    // Clear any pending reconnect
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-
-    isConnectingRef.current = true;
+    setIsConnecting(true);
 
     try {
       console.log('Connecting to WebSocket:', url);
@@ -43,8 +31,9 @@ function useWebSocket() {
 
       ws.onopen = () => {
         console.log('WebSocket connected');
-        isConnectingRef.current = false;
-        setConnected(true);
+        setIsConnected(true);
+        setIsConnecting(false);
+        setError(null);
 
         // Send any pending messages
         while (pendingMessagesRef.current.length > 0) {
@@ -55,8 +44,21 @@ function useWebSocket() {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          setLastMessage(data);
+          const message = JSON.parse(event.data);
+
+          // Debug logging for non-game-state messages to help trace room logic
+          if (message.type !== 'GAME_STATE_UPDATE') {
+            console.log('WS Message:', message);
+          }
+
+          // Special handling for GAME_STATE_UPDATE to keep it easily accessible
+          if (message.type === 'GAME_STATE_UPDATE') {
+            setGameState(message.gameState);
+          }
+
+          // Always update lastMessage so App.js can react to ROOM_CREATED, etc.
+          setLastMessage(message);
+
         } catch (err) {
           console.error('Failed to parse message:', err);
         }
@@ -64,11 +66,11 @@ function useWebSocket() {
 
       ws.onclose = (event) => {
         console.log('WebSocket disconnected, code:', event.code);
-        isConnectingRef.current = false;
-        setConnected(false);
+        setIsConnected(false);
+        setIsConnecting(false);
         wsRef.current = null;
 
-        // Only reconnect on abnormal closure and if we have a URL
+        // Auto-reconnect if not closed normally (1000)
         if (event.code !== 1000 && urlRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('Attempting reconnection...');
@@ -77,17 +79,15 @@ function useWebSocket() {
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        // Don't set error state here immediately as onclose usually follows with more info
-        // or unexpected errors might recover. But for connection failure it's key.
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
         setError('Connection failed');
-        isConnectingRef.current = false;
+        setIsConnecting(false);
       };
     } catch (err) {
       console.error('Failed to connect:', err);
       setError(err.message || 'Failed to connect');
-      isConnectingRef.current = false;
+      setIsConnecting(false);
     }
   }, []);
 
@@ -109,11 +109,11 @@ function useWebSocket() {
       reconnectTimeoutRef.current = null;
     }
     if (wsRef.current) {
-      wsRef.current.onclose = null; // Prevent reconnect
       wsRef.current.close(1000, 'User disconnect');
       wsRef.current = null;
     }
-    setConnected(false);
+    setIsConnected(false);
+    setIsConnecting(false);
   }, []);
 
   // Cleanup on unmount
@@ -124,8 +124,10 @@ function useWebSocket() {
   }, [disconnect]);
 
   return {
-    connected,
-    lastMessage,
+    isConnected,
+    isConnecting,
+    gameState,      // Convenience accessor for game state
+    lastMessage,    // Raw message stream for events like ROOM_CREATED
     error,
     connect,
     send,

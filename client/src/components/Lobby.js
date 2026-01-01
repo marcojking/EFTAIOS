@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GALILEI_MAP, GALATEA_MAP, FERMI_MAP } from '../data/maps';
 import './Lobby.css';
 
-function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastMessage, onStartGame }) {
+function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastMessage, onStartGame, roomCode }) {
   const [players, setPlayers] = useState([]);
   const [selectedMap, setSelectedMap] = useState('fermi'); // Default to Fermi (New)
   const [ipIndex, setIpIndex] = useState(0); // For cycling through IPs
@@ -73,8 +73,8 @@ function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastM
         </div>
 
         <div className="server-info">
-          <span className="label">Server:</span>
-          <span className="value">{serverAddress}</span>
+          <span className="label">Room Code:</span>
+          <span className="value room-code">{isHost ? (lastMessage?.roomCode || 'Loading...') : (lastMessage?.roomCode || 'Unknown')}</span>
           <span className="label">You:</span>
           <span className="value">{playerName} {isHost && '(Host)'}</span>
         </div>
@@ -97,76 +97,23 @@ function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastM
               )}
             </div>
 
-            {/* Enhanced Join Instructions - More prominent for host */}
+            {/* Room Code Instructions */}
             {isHost && (
               <div className="join-instructions host-instructions">
-                <h3>📱 How Players Join</h3>
-                <div className="join-steps">
-                  <div className="join-step">
-                    <span className="step-number">1</span>
-                    <span className="step-text">Players open a browser on their phone/computer</span>
-                  </div>
-                  <div className="join-step">
-                    <span className="step-number">2</span>
-                    <span className="step-text">Type this URL in the browser:</span>
-                  </div>
-                </div>
-                <div className="join-url-box">
-                  <code className="join-url">{`http://${joinAddress.split(':')[0]}:3000`}</code>
-                  <button
-                    className="copy-btn"
-                    onClick={() => navigator.clipboard.writeText(`http://${joinAddress.split(':')[0]}:3000`)}
-                    title="Copy to clipboard"
-                  >
-                    📋
-                  </button>
-                </div>
-                <div className="join-steps" style={{ marginTop: '1rem' }}>
-                  <div className="join-step">
-                    <span className="step-number">3</span>
-                    <span className="step-text">Select "Player" and enter this server address:</span>
-                  </div>
-                </div>
-                <div className="join-url-box">
-                  <code className="join-url">{joinAddress}</code>
-                  <button
-                    className="copy-btn"
-                    onClick={() => navigator.clipboard.writeText(joinAddress)}
-                    title="Copy to clipboard"
-                  >
-                    📋
-                  </button>
+                <h3>📱 Invite Players</h3>
+                <p>Share this code with your friends:</p>
+                <div className="room-code-display">
+                  <code>{lastMessage?.roomCode || '...'}</code>
                 </div>
                 <p className="join-note">
-                  💡 Make sure all players are on the <strong>same WiFi network</strong>
+                  Players should click <strong>"Join Room"</strong> and enter this code.
                 </p>
-                {lastMessage?.allOrignals && lastMessage.allOrignals.length > 1 && (
-                  <div className="ip-cycle-controls" style={{ marginTop: '15px', textAlign: 'center' }}>
-                    <p style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '5px' }}>Having trouble connecting?</p>
-                    <button
-                      className="cycle-ip-btn"
-                      onClick={() => setIpIndex(prev => prev + 1)}
-                      style={{
-                        padding: '8px 12px',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🔄 Try Alternate IP ({ipIndex % lastMessage.allOrignals.length + 1}/{lastMessage.allOrignals.length})
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
             {!isHost && (
               <div className="join-instructions">
-                <h3>How to Join</h3>
-                <p>Other players can connect to:</p>
-                <code>{serverAddress}</code>
+                <p>Waiting for host to start...</p>
               </div>
             )}
           </div>

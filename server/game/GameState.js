@@ -729,7 +729,7 @@ class GameState {
     };
   }
 
-  declareNoise(playerId, sector, isSilence, useDoublePower = false) {
+  declareNoise(playerId, sector, isSilence, useDoublePower = false, useCat = false) {
     const player = this.players.find(p => p.id === playerId);
 
     if (!player || !this.pendingAction || this.pendingAction.playerId !== playerId) {
@@ -737,6 +737,33 @@ class GameState {
     }
 
     // Pilot's Double Noise power
+    if (useCat) {
+      const catItemIndex = player.items.findIndex(i => i.type === 'CAT');
+      if (catItemIndex === -1) {
+        return { success: false, error: 'You do not have a Cat item' };
+      }
+
+      // Consume item
+      player.items.splice(catItemIndex, 1);
+
+      this.addAnnouncement({
+        type: 'ITEM_USED',
+        playerId: player.id,
+        playerName: player.name,
+        itemType: 'CAT',
+        message: `${player.name} uses Cat card: declare noise in two sectors.`
+      });
+
+      // Set pending action for second noise
+      this.pendingAction = {
+        type: 'CAT_NOISE', // Uses CAT_NOISE type to handle final announcement differently
+        playerId: player.id,
+        firstSector: sector
+      };
+
+      return { success: true, requiresSecondNoise: true, firstSector: sector };
+    }
+
     if (useDoublePower && player.character?.power?.id === 'double_noise') {
       if (!player.powerUsage?.usesRemaining || player.powerUsage.usesRemaining <= 0) {
         return { success: false, error: 'Double Noise power already used' };

@@ -1,352 +1,210 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import useWebSocket from './hooks/useWebSocket';
+import LandingScreen from './components/LandingScreen';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
-import useWebSocket from './hooks/useWebSocket';
 import './App.css';
 
+// Audio assets
+import bgMusicFile from './assets/sounds/ambient_space.mp3';
+// import alertSoundFile from './assets/sounds/alert.mp3';
+// import moveSoundFile from './assets/sounds/move.mp3';
+// import hatchSoundFile from './assets/sounds/hatch.mp3';
+
 function App() {
-  const [screen, setScreen] = useState('join'); // join, lobby, game
-  const [playerName, setPlayerName] = useState('');
-  const [isHost, setIsHost] = useState(false);
-  const [gameState, setGameState] = useState(null);
-  const [clientId, setClientId] = useState(null);
-  const [serverAddress, setServerAddress] = useState('');
-  const [lanAddress, setLanAddress] = useState('');
-  const [pendingSecondNoise, setPendingSecondNoise] = useState(null);
-  const [pendingEscapeChoice, setPendingEscapeChoice] = useState(null);
-
-  const [drawnCard, setDrawnCard] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-
   const {
-    connected,
-    send,
+    isConnected,
+    isConnecting,
     lastMessage,
+    gameState,
     connect,
+    send,
+    disconnect,
     error: wsError
   } = useWebSocket();
 
-  // Handle WebSocket errors
-  useEffect(() => {
-    if (wsError) {
-      if (wsError === 'Connection failed') {
-        alert('Could not connect to server. Check IP address and Firewalls.');
-      } else {
-        console.error('WebSocket Error:', wsError);
-      }
-      setIsConnecting(false);
-    }
-  }, [wsError]);
+  // Local state for room management
+  const [playerState, setPlayerState] = useState({
+    id: null,
+    name: '',
+    roomCode: null,
+    isHost: false
+  });
 
-  // Handle successful connection
-  useEffect(() => {
-    if (connected && isConnecting) {
-      // We are connected now, sending join request is handled in handleJoin queueing
-      // But we can stop the spinner if we want, or wait for 'JOINED' message
-      // Note: We wait for JOINED message to switch screens, but we can stop specific button loading if needed
-    }
-  }, [connected, isConnecting]);
+  const [landingError, setLandingError] = useState(null);
 
-  // Handle incoming messages
-  useEffect(() => {
-    // If we receive a message, we are definitely connected and communicating
-    if (isConnecting && lastMessage) {
-      // Reset connecting state if we get valid response that changes screen
-      if (lastMessage.type === 'JOINED' || lastMessage.type === 'ERROR') {
-        setIsConnecting(false);
-      }
-    }
+  // Audio state
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [bgMusic, setBgMusic] = useState(null);
 
+  // Initialize audio
+  useEffect(() => {
+    const music = new Audio(bgMusicFile);
+    music.loop = true;
+    music.volume = 0.3;
+    setBgMusic(music);
+
+    return () => {
+      music.pause();
+      music.currentTime = 0;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (audioEnabled && bgMusic) {
+      bgMusic.play().catch(e => console.log("Audio play failed:", e));
+    } else if (bgMusic) {
+      bgMusic.pause();
+    }
+  }, [audioEnabled, bgMusic]);
+
+  // Connect to server on mount
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    // Standardize port usage: dev=3000->3001, prod=same
+    const wsUrl = process.env.NODE_ENV === 'production'
+      ? `${protocol}//${window.location.host}`
+      : `${protocol}//${host}:3001`;
+
+    connect(wsUrl);
+  }, [connect]);
+
+  // Handle server messages for Room events
+  useEffect(() => {
     if (!lastMessage) return;
 
-    switch (lastMessage.type) {
-      case 'JOINED':
-        setClientId(lastMessage.clientId);
-        if (lastMessage.lanAddress) {
-          setLanAddress(lastMessage.lanAddress);
-        }
-        setScreen('lobby');
-        break;
-
-      case 'GAME_STARTED':
-      case 'STATE_UPDATE':
-        setGameState(lastMessage.state);
-        if (lastMessage.type === 'GAME_STARTED') {
-          setScreen('game');
-        }
-        break;
-
-      case 'CARD_DRAWN':
-        setDrawnCard({
-          card: lastMessage.card,
-          itemCard: lastMessage.itemCard,
-          targetSector: lastMessage.targetSector  // Include target sector from server
-        });
-        break;
-
-      case 'SECOND_NOISE_REQUIRED':
-      case 'CAT_SECOND_NOISE_REQUIRED':
-        setPendingSecondNoise({
-          firstSector: lastMessage.firstSector,
-          type: lastMessage.type === 'CAT_SECOND_NOISE_REQUIRED' ? 'cat' : 'pilot'
-        });
-        break;
-
-      case 'ESCAPE_CHOICE_REQUIRED':
-        setPendingEscapeChoice({
-          cards: lastMessage.escapeCards,
-          sector: lastMessage.sector
-        });
-        break;
-
-      case 'ERROR':
-        alert(lastMessage.message);
-        break;
-
-      default:
-        console.log('Unhandled message:', lastMessage);
+    if (lastMessage.type === 'ROOM_CREATED') {
+      setPlayerState(prev => ({
+        ...prev,
+        roomCode: lastMessage.roomCode,
+        id: lastMessage.playerId,
+        isHost: true
+      }));
+      setLandingError(null);
+    }
+    else if (lastMessage.type === 'ROOM_JOINED') {
+      setPlayerState(prev => ({
+        ...prev,
+        roomCode: lastMessage.roomCode,
+        id: lastMessage.playerId,
+        isHost: false
+      }));
+      setLandingError(null);
+    }
+    else if (lastMessage.type === 'ERROR') {
+      setLandingError(lastMessage.message);
     }
   }, [lastMessage]);
 
-  const handleJoin = useCallback((name, host) => {
-    setPlayerName(name);
-    setIsHost(host);
-    setIsConnecting(true);
+  // ACTIONS
 
-    // Queue the join message first (will be sent when connected)
-    send({
-      type: 'JOIN_LOBBY',
-      name: name,
-      isHost: host
-    });
+  const handleCreateRoom = useCallback(() => {
+    if (!isConnected) return;
+    setPlayerState(prev => ({ ...prev, name: 'Host' })); // Host name defaults, can be changed later? Or just "Host"
+    send({ type: 'CREATE_ROOM' });
+  }, [isConnected, send]);
 
-    // Connect to WebSocket
-    // In production (Render), we connect to the same host that served the page
-    // In development (localhost), we assume port 3001
-    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-    let wsUrl;
-    if (isDevelopment) {
-      wsUrl = 'ws://localhost:3001';
-    } else {
-      // Secure WebSocket on production (wss://)
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${protocol}//${window.location.host}`;
-    }
-
-    connect(wsUrl);
-
-    // Safety timeout in case connection hangs
-    setTimeout(() => {
-      setIsConnecting(curr => {
-        if (curr) {
-          alert('Connection timed out. Check IP address and make sure devices are on the same WiFi.');
-          return false; // Stop loading
-        }
-        return curr;
-      });
-    }, 5000); // 5 second timeout
-  }, [connect, send]);
+  const handleJoinRoom = useCallback((name, code) => {
+    if (!isConnected) return;
+    setPlayerState(prev => ({ ...prev, name }));
+    send({ type: 'JOIN_ROOM', name, roomCode: code });
+  }, [isConnected, send]);
 
   const handleStartGame = useCallback((mapData) => {
-    send({
-      type: 'CREATE_GAME',
-      mapData: mapData
-    });
-
-    setTimeout(() => {
-      send({ type: 'START_GAME' });
-    }, 100);
+    send({ type: 'START_GAME', mapData });
   }, [send]);
 
-  const handleMove = useCallback((sector) => {
-    send({
-      type: 'MOVE',
-      sector: sector
-    });
+  const handleMovePlayer = useCallback((destination) => {
+    send({ type: 'MOVE_PLAYER', destination });
   }, [send]);
 
-  const handleAttack = useCallback((sector, usePower = false) => {
-    send({
-      type: 'ATTACK',
-      sector: sector,
-      usePower: usePower
-    });
-  }, [send]);
-
-  const handleAttackInPlace = useCallback(() => {
-    send({ type: 'ATTACK_IN_PLACE' });
-  }, [send]);
-
-  const handleMoveAndAttack = useCallback((sector, usePower = false) => {
-    send({
-      type: 'MOVE_AND_ATTACK',
-      sector: sector,
-      usePower: usePower
-    });
-  }, [send]);
-
-  const handleDeclareNoise = useCallback((sector, isSilence, useDoublePower = false) => {
+  const handleDeclareNoise = useCallback((sector, silence = false, useDoublePower = false, useCat = false) => {
     send({
       type: 'DECLARE_NOISE',
-      sector: sector,
-      isSilence: isSilence,
-      useDoublePower: useDoublePower
+      sector,
+      silence,
+      useDoublePower,
+      useCat
     });
   }, [send]);
 
-  const handleDeclareSecondNoise = useCallback((sector) => {
-    send({
-      type: 'DECLARE_SECOND_NOISE',
-      sector: sector
-    });
-    setPendingSecondNoise(null);
+  const handleUseItem = useCallback((itemIndex, targetSector = null) => {
+    send({ type: 'USE_ITEM', itemIndex, targetSector });
   }, [send]);
 
-  const handleUseItem = useCallback((itemId, itemType, target) => {
-    send({
-      type: 'USE_ITEM',
-      itemId: itemId,
-      itemType: itemType,
-      target: target
-    });
+  const handleAttack = useCallback((sector) => {
+    send({ type: 'ATTACK', sector });
   }, [send]);
 
-  const handleUsePower = useCallback((power, targetPlayerId = null) => {
-    send({
-      type: 'USE_POWER',
-      power: power,
-      targetPlayerId: targetPlayerId
-    });
+  const handleUseEscapeHatch = useCallback((cardIndex) => {
+    send({ type: 'USE_ESCAPE_HATCH', cardIndex });
   }, [send]);
 
-  const handleChooseEscapeCard = useCallback((cardIndex) => {
-    send({
-      type: 'CHOOSE_ESCAPE_CARD',
-      cardIndex: cardIndex
-    });
-    setPendingEscapeChoice(null);
+  const handleEndTurn = useCallback(() => {
+    send({ type: 'END_TURN' });
   }, [send]);
 
-  const handleCardDismiss = useCallback(() => {
-    setDrawnCard(null);
-  }, []);
+  const handlePrimeAttack = useCallback((primed) => {
+    send({ type: 'PRIME_ATTACK', primed });
+  }, [send]);
 
-  // Render based on current screen
-  if (screen === 'join') {
-    return <JoinScreen onJoin={handleJoin} isConnecting={isConnecting} />;
-  }
 
-  if (screen === 'lobby') {
-    return (
-      <Lobby
-        connected={connected}
-        isHost={isHost}
-        playerName={playerName}
-        serverAddress={serverAddress}
-        lanAddress={lanAddress}
-        lastMessage={lastMessage}
-        onStartGame={handleStartGame}
-      />
-    );
-  }
+  // VIEW LOGIC
 
-  if (screen === 'game' && gameState) {
-    return (
-      <GameBoard
-        gameState={gameState}
-        clientId={clientId}
-        isHost={isHost}
-        onMove={handleMove}
-        onAttack={handleAttack}
-        onAttackInPlace={handleAttackInPlace}
-        onMoveAndAttack={handleMoveAndAttack}
-        onDeclareNoise={handleDeclareNoise}
-        onDeclareSecondNoise={handleDeclareSecondNoise}
-        onUseItem={handleUseItem}
-        onUsePower={handleUsePower}
-        onChooseEscapeCard={handleChooseEscapeCard}
-        onCardDismiss={handleCardDismiss}
-        pendingSecondNoise={pendingSecondNoise}
-        pendingEscapeChoice={pendingEscapeChoice}
-        drawnCard={drawnCard}
-      />
-    );
-  }
+  // 1. Not connected or Error -> Show Connect Message (handled in LandingScreen mostly by disabling buttons)
+  // 2. Connected, No Room -> Landing Screen
+  // 3. Connected, Room, Lobby Phase -> Lobby
+  // 4. Connected, Room, Game Phase -> GameBoard
 
-  return <div className="loading">Loading...</div>;
-}
-
-// Join Screen Component
-function JoinScreen({ onJoin, isConnecting }) {
-  const [name, setName] = useState('');
-  const [mode, setMode] = useState(null); // null, 'player', 'host'
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onJoin(name.trim(), mode === 'host');
-    }
-  };
+  const showLanding = isConnected && !playerState.roomCode;
+  const showLobby = playerState.roomCode && (!gameState || gameState.phase === 'LOBBY');
+  const showGame = playerState.roomCode && gameState && gameState.phase !== 'LOBBY';
 
   return (
-    <div className="join-screen">
-      <div className="join-container">
-        <h1 className="game-title">
-          <span className="title-escape">ESCAPE</span>
-          <span className="title-from">FROM THE</span>
-          <span className="title-aliens">ALIENS</span>
-          <span className="title-space">IN OUTER SPACE</span>
-        </h1>
+    <div className="App">
+      {/* Pre-connection / Landing */}
+      {(!isConnected || showLanding) && (
+        <LandingScreen
+          onCreateRoom={handleCreateRoom}
+          onJoinRoom={handleJoinRoom}
+          isConnecting={isConnecting}
+          error={wsError || landingError}
+        />
+      )}
 
-        {!mode ? (
-          <div className="mode-selection">
-            <button
-              className="mode-btn host-btn"
-              onClick={() => setMode('host')}
-            >
-              <span className="mode-icon">📺</span>
-              <span className="mode-label">Host / Spectator</span>
-              <span className="mode-desc">Show all positions on main screen</span>
-            </button>
-            <button
-              className="mode-btn player-btn"
-              onClick={() => setMode('player')}
-            >
-              <span className="mode-icon">🎮</span>
-              <span className="mode-label">Player</span>
-              <span className="mode-desc">Join from phone or computer</span>
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="join-form">
+      {/* Lobby */}
+      {showLobby && (
+        <Lobby
+          gameState={gameState}
+          isHost={playerState.isHost}
+          onStartGame={handleStartGame}
+          currentPlayerId={playerState.id}
+          roomCode={playerState.roomCode} // Pass room code to display
+        />
+      )}
 
-            <div className="form-group">
-              <label>{mode === 'host' ? 'Host Name' : 'Your Name'}</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter name"
-                disabled={isConnecting}
-              />
-            </div>
-            <div className="form-actions">
-              <button type="button" className="back-btn" onClick={() => setMode(null)}>
-                Back
-              </button>
-              <button type="submit" className="join-btn" disabled={!name.trim() || isConnecting}>
-                {isConnecting ? (
-                  <>
-                    <span className="spinner"></span> Connecting...
-                  </>
-                ) : (
-                  mode === 'host' ? 'Create Lobby' : 'Join Game'
-                )}
-              </button>
-            </div>
-          </form>
-        )}
+      {/* Game */}
+      {showGame && (
+        <div className="game-container">
+          <GameBoard
+            gameState={gameState}
+            myPlayerId={playerState.id}
+            onMove={handleMovePlayer}
+            onDeclareNoise={handleDeclareNoise}
+            onUseItem={handleUseItem}
+            onAttack={handleAttack}
+            onUseEscapeHatch={handleUseEscapeHatch}
+            onEndTurn={handleEndTurn}
+            onPrimeAttack={handlePrimeAttack}
+          />
+        </div>
+      )}
+
+      <div className="audio-controls">
+        <button onClick={() => setAudioEnabled(!audioEnabled)}>
+          {audioEnabled ? '🔊' : '🔇'}
+        </button>
       </div>
     </div>
   );

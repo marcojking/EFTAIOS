@@ -3,36 +3,51 @@ const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
-const GameState = require('./game/GameState');
+const RoomManager = require('./game/RoomManager');
 const { DANGEROUS_SECTOR_CARDS, ITEM_CARDS, ESCAPE_HATCH_CARDS } = require('./game/cards');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Game state
-let gameState = null;
-const clients = new Map(); // WebSocket -> { id, name, isHost }
+// Room manager handling multiple game states
+const roomManager = new RoomManager();
 
-// Broadcast to all clients
-function broadcast(message, excludeWs = null) {
-  const data = JSON.stringify(message);
-  wss.clients.forEach(client => {
-    if (client !== excludeWs && client.readyState === WebSocket.OPEN) {
-      client.send(data);
+// Client connection tracking: ws -> { id, roomCode, isHost }
+const clients = new Map();
+
+// Helper: Get all clients in a specific room
+function getRoomClients(roomCode) {
+  const roomClients = [];
+  for (const [ws, client] of clients.entries()) {
+    if (client.roomCode === roomCode && ws.readyState === WebSocket.OPEN) {
+      roomClients.push({ ws, ...client });
     }
-  });
+  }
+  return roomClients;
 }
 
-// Send to specific client
+// Helper: Broadcast to a specific room
+function broadcastToRoom(roomCode, message, excludeWs = null) {
+  if (!roomCode) return;
+  const data = JSON.stringify(message);
+
+  for (const [ws, client] of clients.entries()) {
+    if (client.roomCode === roomCode && ws !== excludeWs && ws.readyState === WebSocket.OPEN) {
+      ws.send(data);
+    }
+  }
+}
+
+// Helper: Send to specific client
 function sendTo(ws, message) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
   }
 }
 
-// Get player-specific view of game state (hides other players' positions)
-function getPlayerView(playerId) {
+// Get player-specific view of game state
+function getPlayerView(gameState, playerId) {
   if (!gameState) return null;
 
   const player = gameState.players.find(p => p.id === playerId);
@@ -70,19 +85,58 @@ function getPlayerView(playerId) {
   };
 }
 
-// Get host/spectator view (shows everything)
-function getHostView() {
+// Get host/spectator view
+function getHostView(gameState) {
   if (!gameState) return null;
-
   return {
     ...gameState,
     isHostView: true
   };
 }
 
+// Broadcast updated state to all players in a room
+function broadcastGameState(roomCode) {
+  const gameState = roomManager.getRoom(roomCode);
+  if (!gameState) return;
+
+  const roomClients = getRoomClients(roomCode);
+
+  roomClients.forEach(client => {
+    let view;
+    if (client.isHost) {
+      view = getHostView(gameState);
+    } else {
+      view = getPlayerView(gameState, client.id);
+    }
+
+    if (view) {
+      sendTo(client.ws, {
+        type: 'GAME_STATE_UPDATE',
+        gameState: view
+      });
+    }
+  });
+}
+
+function getLocalIP() {
+  const { networkInterfaces } = require('os');
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        if (net.address.startsWith('192.168.') || net.address.startsWith('10.')) {
+          return net.address;
+        }
+      }
+    }
+  }
+  return 'localhost';
+}
+
 wss.on('connection', (ws) => {
   const clientId = uuidv4();
-  clients.set(ws, { id: clientId, name: null, isHost: false });
+  // Client starts with no room
+  clients.set(ws, { id: clientId, roomCode: null, isHost: false });
 
   console.log(`Client connected: ${clientId}`);
 
@@ -97,425 +151,198 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     const client = clients.get(ws);
-    console.log(`Client disconnected: ${client?.id}`);
+    console.log(`Client disconnected: ${client?.id} from room ${client?.roomCode}`);
 
-    if (gameState && client) {
-      const player = gameState.players.find(p => p.id === client.id);
-      if (player) {
-        player.connected = false;
-        broadcast({ type: 'PLAYER_DISCONNECTED', playerId: client.id });
+    // Handle disconnection logic here if needed (e.g. notify room)
+    const roomCode = client?.roomCode;
+    clients.delete(ws);
+
+    // Optional: Notify room of disconnection
+    if (roomCode) {
+      const gameState = roomManager.getRoom(roomCode);
+      if (gameState) {
+        broadcastGameState(roomCode);
       }
     }
-
-    clients.delete(ws);
   });
 });
 
 function handleMessage(ws, message) {
   const client = clients.get(ws);
+  if (!client) return;
 
   switch (message.type) {
-    case 'JOIN_LOBBY':
-      handleJoinLobby(ws, client, message);
-      break;
+    case 'CREATE_ROOM': {
+      // Host creates a room
+      const roomCode = roomManager.createRoom(message.mapData || null);
 
-    case 'CREATE_GAME':
-      handleCreateGame(ws, client, message);
-      break;
+      // Update client state
+      client.roomCode = roomCode;
+      client.isHost = true;
+      clients.set(ws, client);
 
-    case 'START_GAME':
-      handleStartGame(ws, client);
+      sendTo(ws, {
+        type: 'ROOM_CREATED',
+        roomCode: roomCode,
+        playerId: client.id
+      });
       break;
+    }
 
-    case 'MOVE':
-      handleMove(ws, client, message);
+    case 'JOIN_ROOM': {
+      // Player joins a room
+      const roomCode = message.roomCode?.toUpperCase();
+      const gameState = roomManager.getRoom(roomCode);
+
+      if (!gameState) {
+        sendTo(ws, { type: 'ERROR', message: 'Room not found' });
+        return;
+      }
+
+      // Check if game already started
+      if (gameState.phase !== 'LOBBY') {
+        sendTo(ws, { type: 'ERROR', message: 'Game already in progress' });
+        return;
+      }
+
+      // Update client state
+      client.roomCode = roomCode;
+      client.name = message.name;
+      client.isHost = false; // Joiners are never hosts
+      clients.set(ws, client);
+
+      // Add player to game state
+      const player = gameState.addPlayer(client.id, message.name);
+
+      sendTo(ws, {
+        type: 'ROOM_JOINED',
+        roomCode: roomCode,
+        playerId: client.id,
+        player: player
+      });
+
+      // Notify everyone in room
+      broadcastGameState(roomCode);
       break;
+    }
 
-    case 'ATTACK':
-      handleAttack(ws, client, message);
+    case 'START_GAME': {
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode); // Get specific room!
+
+      if (gameState && client.isHost) {
+        if (message.mapData) {
+          gameState.setMap(message.mapData);
+        }
+
+        const started = gameState.startGame();
+        if (started) {
+          broadcastGameState(roomCode);
+        } else {
+          sendTo(ws, { type: 'ERROR', message: 'Not enough players to start' });
+        }
+      }
       break;
+    }
 
-    case 'MOVE_AND_ATTACK':
-      handleMoveAndAttack(ws, client, message);
+    case 'MOVE_PLAYER': {
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+
+      if (gameState) {
+        const result = gameState.movePlayer(client.id, message.destination);
+        if (result.success) {
+          // If silent move, only tell the player
+          if (result.silent) {
+            broadcastGameState(roomCode); // Updates everyone that p moved (hidden)
+          } else {
+            // Normal move or noise
+            broadcastGameState(roomCode);
+          }
+
+          // Send card drawn info ONLY to the moving player
+          if (result.cardDrawn) {
+            sendTo(ws, {
+              type: 'CARD_DRAWN',
+              card: result.cardDrawn,
+              itemCard: result.itemDrawn || null,
+              targetSector: result.targetSector
+            });
+          }
+        } else {
+          sendTo(ws, { type: 'ERROR', message: result.message });
+        }
+      }
       break;
+    }
 
-    case 'ATTACK_IN_PLACE':
-      handleAttackInPlace(ws, client);
-      break;
-
-    case 'USE_ITEM':
-      handleUseItem(ws, client, message);
-      break;
-
-    case 'USE_POWER':
-      handleUsePower(ws, client, message);
-      break;
-
+    // ... Delegate all other actions to the room's GameState ...
     case 'DECLARE_NOISE':
-      handleDeclareNoise(ws, client, message);
+    case 'USE_ITEM':
+    case 'ATTACK':
+    case 'USE_ESCAPE_HATCH':
+    case 'END_TURN':
+    case 'PRIME_ATTACK': {
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+
+      if (gameState) {
+        // Generic handler for all other actions
+        // We map the message type to the method name on GameState
+        // e.g. DECLARE_NOISE -> declareNoise
+
+        // Manual mapping for safety
+        let result = { success: false, message: 'Unknown action' };
+
+        if (message.type === 'DECLARE_NOISE') {
+          // message.silence handles the isSilence param
+          // message.useDoublePower handles double noise power
+          // message.useCat handles Cat item noise
+          result = gameState.declareNoise(
+            client.id,
+            message.sector,
+            message.silence,
+            message.useDoublePower || false,
+            message.useCat || false
+          );
+        } else if (message.type === 'USE_ITEM') {
+          result = gameState.useItem(client.id, message.itemIndex, message.targetSector);
+        } else if (message.type === 'ATTACK') {
+          result = gameState.attack(client.id, message.sector);
+        } else if (message.type === 'USE_ESCAPE_HATCH') {
+          result = gameState.useEscapeHatch(client.id, message.cardIndex);
+        } else if (message.type === 'END_TURN') {
+          result = gameState.endTurn(client.id);
+        } else if (message.type === 'PRIME_ATTACK') {
+          result = gameState.primeAttack(client.id, message.primed);
+        }
+
+        if (result.success) {
+          broadcastGameState(roomCode);
+        } else {
+          sendTo(ws, { type: 'ERROR', message: result.message });
+        }
+      }
       break;
-
-    case 'DECLARE_SECOND_NOISE':
-      handleDeclareSecondNoise(ws, client, message);
-      break;
-
-    case 'CHOOSE_ESCAPE_CARD':
-      handleChooseEscapeCard(ws, client, message);
-      break;
-
-    case 'UPDATE_GHOST_TOKENS':
-      handleUpdateGhostTokens(ws, client, message);
-      break;
-
-    case 'GET_STATE':
-      sendPlayerState(ws, client);
-      break;
-
-    default:
-      console.log('Unknown message type:', message.type);
-  }
-}
-
-function handleJoinLobby(ws, client, message) {
-  client.name = message.name;
-  client.isHost = message.isHost || false;
-
-  sendTo(ws, {
-    type: 'JOINED',
-    clientId: client.id,
-    isHost: client.isHost,
-    type: 'JOINED',
-    clientId: client.id,
-    isHost: client.isHost,
-    lanAddress: `${getLocalIP()}:${PORT}`, // Best guess
-    allOrignals: getAllIPs().map(ip => `${ip}:${PORT}`) // List of all valid IPs
-  });
-
-  // Send current lobby state
-  const lobbyPlayers = Array.from(clients.values())
-    .filter(c => c.name)
-    .map(c => ({ id: c.id, name: c.name, isHost: c.isHost }));
-
-  broadcast({ type: 'LOBBY_UPDATE', players: lobbyPlayers });
-}
-
-function handleCreateGame(ws, client, message) {
-  if (!client.isHost) {
-    sendTo(ws, { type: 'ERROR', message: 'Only host can create game' });
-    return;
-  }
-
-  const playerList = Array.from(clients.values())
-    .filter(c => c.name && !c.isHost)
-    .map(c => ({ id: c.id, name: c.name }));
-
-  gameState = new GameState(message.mapData, playerList);
-
-  broadcast({ type: 'GAME_CREATED' });
-}
-
-function handleStartGame(ws, client) {
-  if (!client.isHost) {
-    sendTo(ws, { type: 'ERROR', message: 'Only host can start game' });
-    return;
-  }
-
-  if (!gameState) {
-    sendTo(ws, { type: 'ERROR', message: 'No game created' });
-    return;
-  }
-
-  gameState.start();
-
-  // Send personalized state to each player
-  clients.forEach((c, clientWs) => {
-    if (c.isHost) {
-      sendTo(clientWs, { type: 'GAME_STARTED', state: getHostView() });
-    } else {
-      sendTo(clientWs, { type: 'GAME_STARTED', state: getPlayerView(c.id) });
     }
-  });
-}
 
-function handleMove(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.movePlayer(client.id, message.sector);
-
-  if (result.success) {
-    broadcastGameState();
-
-    if (result.cardDrawn) {
-      // Only send the drawn card to the player who drew it
-      sendTo(ws, {
-        type: 'CARD_DRAWN',
-        card: result.cardDrawn,
-        itemCard: result.itemDrawn || null,
-        targetSector: result.targetSector  // Pass target sector explicitly
-      });
-    }
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleAttack(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.attack(client.id, message.sector, message.usePower || false);
-
-  if (result.success) {
-    broadcast({
-      type: 'ATTACK_RESULT',
-      attacker: client.id,
-      sector: message.sector,
-      victims: result.victims,
-      survivors: result.survivors
-    });
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleMoveAndAttack(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.moveAndAttack(client.id, message.sector, message.usePower || false);
-
-  if (result.success) {
-    broadcast({
-      type: 'MOVE_AND_ATTACK_RESULT',
-      attacker: client.id,
-      sector: message.sector,
-      victims: result.victims,
-      survivors: result.survivors
-    });
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleUseItem(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.useItem(client.id, message.itemId, message.target);
-
-  if (result.success) {
-    // Handle Cat item's second noise requirement
-    if (result.effect?.requiresSecondSector) {
-      sendTo(ws, {
-        type: 'CAT_SECOND_NOISE_REQUIRED',
-        firstSector: result.effect.firstSector
-      });
-    } else {
-      broadcast({
-        type: 'ITEM_USED',
-        playerId: client.id,
-        itemType: message.itemType,
-        result: result.effect
-      });
-    }
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleDeclareNoise(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.declareNoise(
-    client.id,
-    message.sector,
-    message.isSilence,
-    message.useDoublePower || false
-  );
-
-  if (result.success) {
-    if (result.requiresSecondNoise) {
-      // Pilot's double noise - send back to player for second sector selection
-      sendTo(ws, {
-        type: 'SECOND_NOISE_REQUIRED',
-        firstSector: result.firstSector
-      });
-    } else {
-      broadcast({
-        type: 'NOISE_DECLARED',
-        playerId: client.id,
-        sector: message.isSilence ? null : message.sector,
-        isSilence: message.isSilence
-      });
-    }
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleDeclareSecondNoise(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.declareSecondNoise(client.id, message.sector);
-
-  if (result.success) {
-    broadcast({
-      type: 'DOUBLE_NOISE_DECLARED',
-      playerId: client.id
-    });
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleAttackInPlace(ws, client) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.attackInPlace(client.id);
-
-  if (result.success) {
-    broadcast({
-      type: 'ATTACK_RESULT',
-      attacker: client.id,
-      attackType: 'lurking',
-      victims: result.victims,
-      survivors: result.survivors
-    });
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleUsePower(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  let result;
-
-  switch (message.power) {
-    case 'free_teleport':
-      result = gameState.useFreeTeport(client.id);
+    // Keep alive / Debug
+    case 'PING':
+      sendTo(ws, { type: 'PONG' });
       break;
-
-    case 'reveal_identity':
-      result = gameState.useRevealIdentity(client.id, message.targetPlayerId);
-      break;
-
-    case 'stay_still':
-      result = gameState.useStayStill(client.id);
-      break;
-
-    default:
-      sendTo(ws, { type: 'ERROR', message: 'Unknown power' });
-      return;
-  }
-
-  if (result.success) {
-    broadcast({
-      type: 'POWER_USED',
-      playerId: client.id,
-      power: message.power,
-      result: result
-    });
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
   }
 }
-
-function handleChooseEscapeCard(ws, client, message) {
-  if (!gameState || gameState.phase !== 'playing') return;
-
-  const result = gameState.chooseEscapeCard(client.id, message.cardIndex);
-
-  if (result.success) {
-    broadcast({
-      type: 'ESCAPE_RESOLVED',
-      playerId: client.id,
-      escaped: result.escaped,
-      sector: message.sector
-    });
-    broadcastGameState();
-  } else {
-    sendTo(ws, { type: 'ERROR', message: result.error });
-  }
-}
-
-function handleUpdateGhostTokens(ws, client, message) {
-  // Ghost tokens are client-side only, but we can sync them if needed
-  // For now, this is handled entirely on the client
-}
-
-function sendPlayerState(ws, client) {
-  if (!gameState) {
-    sendTo(ws, { type: 'STATE', state: null });
-    return;
-  }
-
-  if (client.isHost) {
-    sendTo(ws, { type: 'STATE', state: getHostView() });
-  } else {
-    sendTo(ws, { type: 'STATE', state: getPlayerView(client.id) });
-  }
-}
-
-function broadcastGameState() {
-  clients.forEach((client, ws) => {
-    if (client.isHost) {
-      sendTo(ws, { type: 'STATE_UPDATE', state: getHostView() });
-    } else if (client.name) {
-      sendTo(ws, { type: 'STATE_UPDATE', state: getPlayerView(client.id) });
-    }
-  });
-}
-
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`EFTAIOS Server running on port ${PORT}`);
-  console.log(`LAN address: http://${getLocalIP()}:${PORT}`);
-});
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
+// Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+  res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
 });
 
-// Get all valid LAN IPs
-function getAllIPs() {
-  const { networkInterfaces } = require('os');
-  const nets = networkInterfaces();
-  const results = [];
-
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      // Skip internal (localhost) and non-IPv4
-      if (net.family === 'IPv4' && !net.internal) {
-        results.push(net.address);
-      }
-    }
-  }
-  return results;
-}
-
-// Get the best guess for the LAN IP (prioritizing common LAN subnets)
-function getLocalIP() {
-  const ips = getAllIPs();
-
-  // Preference order: 192.168.x.x -> 10.x.x.x -> 172.x.x.x
-  const pref192 = ips.find(ip => ip.startsWith('192.168.'));
-  if (pref192) return pref192;
-
-  const pref10 = ips.find(ip => ip.startsWith('10.'));
-  if (pref10) return pref10;
-
-  const pref172 = ips.find(ip => ip.startsWith('172.'));
-  if (pref172) return pref172;
-
-  return ips[0] || 'localhost';
-}
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Local Access: http://${getLocalIP()}:${PORT}`);
+});

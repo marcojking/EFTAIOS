@@ -6,6 +6,7 @@ function CardModal({
   onDeclareNoiseHere,
   onDeclareNoiseAnywhere,
   onDeclareSilence,
+  onUseCat,
   onClose,
   player
 }) {
@@ -30,6 +31,9 @@ function CardModal({
   const hasDoubleNoisePower = player?.character?.power?.id === 'double_noise'
     && player?.powerUsage?.usesRemaining > 0;
 
+  // Check if player has Cat item
+  const hasCatItem = player?.items?.some(item => item.type === 'CAT');
+
   // Handle "Choose Sector on Map" - closes modal automatically
   const handleChooseSectorClick = () => {
     onDeclareNoiseAnywhere();
@@ -39,6 +43,12 @@ function CardModal({
   const handleUseDoubleNoise = () => {
     // This triggers the double noise flow via onDeclareNoiseAnywhere with a flag
     onDeclareNoiseAnywhere(true);
+  };
+
+  // Handle Cat item usage - allows declaring noise anywhere instead of here
+  const handleUseCat = () => {
+    // Call onDeclareNoiseHere with useCat=true to trigger the Cat logic
+    onDeclareNoiseHere(true);
   };
 
   return (
@@ -65,9 +75,16 @@ function CardModal({
             {card.type === 'NOISE_YOUR_SECTOR' && (
               <>
                 <p>You must declare noise in your <strong>current sector</strong>.</p>
-                <button className="action-btn primary" onClick={onDeclareNoiseHere}>
-                  Declare Noise Here
-                </button>
+                <div className="action-buttons">
+                  <button className="action-btn primary" onClick={onDeclareNoiseHere}>
+                    Declare Noise Here
+                  </button>
+                  {hasCatItem && (
+                    <button className="action-btn cat-btn" onClick={handleUseCat}>
+                      🐱 Use Cat (Declare Anywhere)
+                    </button>
+                  )}
+                </div>
               </>
             )}
 
