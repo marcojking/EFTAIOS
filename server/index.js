@@ -53,6 +53,9 @@ function getPlayerView(gameState, playerId) {
   const player = gameState.players.find(p => p.id === playerId);
   if (!player) return null;
 
+  // Check if player is a spectator (dead alien)
+  const isSpectator = player.role === 'alien' && !player.alive;
+
   return {
     phase: gameState.phase,
     currentTurn: gameState.currentTurn,
@@ -64,13 +67,16 @@ function getPlayerView(gameState, playerId) {
     myPlayer: {
       ...player,
       powerUsage: player.powerUsage,
-      hasMoved: player.hasMoved
+      hasMoved: player.hasMoved,
+      isSpectator: isSpectator // explicit flag for client
     },
     players: gameState.players.map(p => ({
       id: p.id,
       name: p.name,
-      role: p.id === playerId ? p.role : (p.revealed ? p.role : null),
-      character: p.id === playerId ? p.character : (p.revealed ? p.character : null),
+      // specific logic: reveal everything if spectator
+      role: (p.id === playerId || isSpectator) ? p.role : (p.revealed ? p.role : null),
+      character: (p.id === playerId || isSpectator) ? p.character : (p.revealed ? p.character : null),
+      position: (p.id === playerId || isSpectator || p.revealed) ? p.position : null, // Include position for spectators
       revealed: p.revealed || false,
       alive: p.alive ?? true,
       escaped: p.escaped || false,

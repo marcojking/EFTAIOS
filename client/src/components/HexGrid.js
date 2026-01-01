@@ -58,10 +58,13 @@ function HexGrid({
   ghostTokens,
   players,
   isHost,
+  showAllPlayers,
   escapeHatchStatus,
   selectedGhostPlayer,
   onHexClick,
-  highlightMode
+  highlightMode,
+  pulsingSectors,
+  playerGuesses
 }) {
   const svgRef = useRef(null);
   const [viewBox, setViewBox] = useState('0 0 800 600');
@@ -104,6 +107,7 @@ function HexGrid({
   }, [bounds]);
 
   // Get player initials and color
+  // Get player initials and color
   const getPlayerDisplay = (playerId) => {
     const player = players?.find(p => p.id === playerId);
     if (!player) return { initials: '?', color: '#888' };
@@ -115,10 +119,18 @@ function HexGrid({
       .toUpperCase()
       .slice(0, 2);
 
-    // Color based on known role or default
     let color = '#888';
-    if (player.revealed) {
+
+    // Host or Spectator sees TRUE colors
+    if (isHost || showAllPlayers) {
       color = player.role === 'human' ? '#00d9ff' : '#e94560';
+    } else {
+      // Regular players see their GUESSES
+      if (playerGuesses && playerGuesses[playerId]) {
+        const guess = playerGuesses[playerId];
+        if (guess === 'human') color = '#00ff88'; // Green
+        else if (guess === 'alien') color = '#e94560'; // Red
+      }
     }
 
     return { initials, color, name: player.name };
@@ -131,13 +143,18 @@ function HexGrid({
     const isMyPosition = hex.label === myPosition;
     const ghostsHere = ghostTokens[hex.label] || [];
 
-    // For host view, show all real player positions
-    const playersHere = isHost
+    // For host view OR spectator view, show all real player positions
+    const playersHere = showAllPlayers || isHost
       ? players?.filter(p => p.position === hex.label && p.alive && !p.escaped) || []
       : [];
 
+    // Apply coloring to "real" map tokens too, based on guesses (keeps map consistent with top bar)
+    // Note: If showAllPlayers is true (spectating), we still use guesses for colors
+    // to strictly follow "tokens should never auto change colors".
+
     const isHighlighted = highlightMode === 'noise-select';
     const isSelecting = selectedGhostPlayer !== null;
+    const isPulsing = pulsingSectors && pulsingSectors.has(hex.label);
 
     return (
       <g
@@ -153,9 +170,9 @@ function HexGrid({
         <polygon
           points={getHexPoints(x, y, HEX_SIZE - 1)}
           fill={colors.fill}
-          stroke={isHighlighted ? '#e94560' : colors.stroke}
-          strokeWidth={isHighlighted ? 2 : 1}
-          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''}`}
+          stroke={isHighlighted ? '#e94560' : (isPulsing ? '#ffcc00' : colors.stroke)}
+          strokeWidth={isHighlighted || isPulsing ? 3 : 1}
+          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''} ${isPulsing ? 'pulse-yellow' : ''}`}
         />
 
         {/* Sector label */}
@@ -229,10 +246,10 @@ function HexGrid({
           );
         })}
 
-        {/* Real player positions (host view only) */}
-        {isHost && playersHere.map((player, idx) => {
-          const { initials } = getPlayerDisplay(player.id);
-          const playerColor = player.role === 'human' ? '#00d9ff' : '#e94560';
+        {/* Real player positions (host or spectator view) */}
+        {(showAllPlayers || isHost) && playersHere.map((player, idx) => {
+          // Use common display logic so map tokens match top bar guesses
+          const { initials, color } = getPlayerDisplay(player.id);
           const offsetAngle = (idx / Math.max(playersHere.length, 1)) * Math.PI * 2 + Math.PI / 4;
           const tokenX = x + Math.cos(offsetAngle) * (HEX_SIZE * 0.4) * (playersHere.length > 1 ? 1 : 0);
           const tokenY = y + Math.sin(offsetAngle) * (HEX_SIZE * 0.4) * (playersHere.length > 1 ? 1 : 0);
@@ -243,7 +260,7 @@ function HexGrid({
                 cx={tokenX}
                 cy={tokenY}
                 r={12}
-                fill={playerColor}
+                fill={color}
                 stroke="white"
                 strokeWidth="2"
               />

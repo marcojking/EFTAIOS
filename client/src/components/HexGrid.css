@@ -1,3 +1,31 @@
+@keyframes pulse-yellow {
+  0% {
+    fill: #4a4a1a;
+    stroke: #ffcc00;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.5));
+  }
+
+  50% {
+    fill: #6a6a1a;
+    stroke: #ffdd44;
+    stroke-width: 4px;
+    filter: drop-shadow(0 0 15px rgba(255, 204, 0, 0.8));
+  }
+
+  100% {
+    fill: #4a4a1a;
+    stroke: #ffcc00;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.5));
+  }
+}
+
+.hex.pulse-yellow {
+  animation: pulse-yellow 1s infinite;
+  z-index: 10;
+}
+
 .hex-grid-container {
   flex: 1;
   overflow: hidden;

@@ -562,7 +562,7 @@ const morgenlandLayout = [
   { col: 11, row: 8, state: 'human-start' }, // L08 - Human Start (Moved here)
   { col: 13, row: 8, state: 'dangerous' }, // N08
   { col: 14, row: 8, state: 'dangerous' }, // O08 - Now Dangerous
-  { col: 15, row: 8, state: 'dangerous' }, // P08 - Was Escape 2, now Dangerous
+  { col: 15, row: 8, state: 'airlock' },   // P08 - Escape Hatch 3
   { col: 16, row: 8, state: 'dangerous' }, // Q08
 
   // Row 9

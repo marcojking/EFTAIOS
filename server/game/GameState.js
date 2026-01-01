@@ -245,6 +245,15 @@ class GameState {
       // Check for Sedatives effect - skip card draw
       if (effects.sedatives) {
         delete this.activeEffects[playerId];
+
+        // Announce silence (since no card is drawn, it's effectively a Silent Sector)
+        this.addAnnouncement({
+          type: 'SILENCE',
+          playerId: player.id,
+          playerName: player.name,
+          message: `${player.name} (Sedatives): Silence in all sectors.`
+        });
+
         this.endTurn();
         return { success: true, skippedCard: true };
       }
@@ -1473,7 +1482,15 @@ class GameState {
   endGame(reason) {
     this.phase = 'ended';
 
+    // Reveal all players
+    this.players.forEach(p => {
+      p.revealed = true;
+    });
+
     let message = '';
+    const escaped = this.players.filter(p => p.escaped);
+    const escapedNames = escaped.map(p => p.name).join(', ');
+
     switch (reason) {
       case 'timeout':
         message = 'Time ran out! Aliens win!';
@@ -1482,8 +1499,11 @@ class GameState {
         message = 'All humans have been eliminated! Aliens win!';
         break;
       case 'humans_escaped':
-        const escaped = this.players.filter(p => p.escaped);
-        message = `Game over! Escaped: ${escaped.map(p => p.name).join(', ')}`;
+        if (escaped.length > 0) {
+          message = `Escaped players: ${escapedNames} won!`;
+        } else {
+          message = 'All humans eliminated. Aliens Win.';
+        }
         break;
     }
 
@@ -1495,19 +1515,25 @@ class GameState {
 
     let popupType = 'win'; // default
     let header = 'GAME OVER';
+    let subMessage = '';
 
-    if (reason === 'aliens_win' || reason === 'timeout') {
-      popupType = 'loss'; // Human loss / Alien win
-      header = 'ALIENS WIN!';
-    } else if (reason === 'humans_escaped') {
-      popupType = 'win'; // Human win
-      header = 'HUMANS WIN!';
+    if (escaped.length > 0) {
+      popupType = 'win';
+      header = 'GAME OVER';
+      message = `The following players have escaped and won:`;
+      subMessage = escapedNames;
+    } else {
+      popupType = 'loss';
+      header = 'GAME OVER';
+      message = 'No players escaped.';
+      subMessage = 'Aliens have taken over the ship!';
     }
 
     this.broadcastPopup(
       popupType,
       header,
-      message
+      message,
+      subMessage
     );
   }
 

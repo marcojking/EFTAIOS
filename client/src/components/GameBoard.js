@@ -5,6 +5,7 @@ import GameLog from './GameLog';
 import PlayerHUD from './PlayerHUD';
 import CardModal from './CardModal';
 import PlayerTracker from './PlayerTracker';
+import LogToast from './LogToast';
 import './GameBoard.css';
 
 function GameBoard({
@@ -35,6 +36,77 @@ function GameBoard({
   const [targetSelectionMode, setTargetSelectionMode] = useState(null); // { type: 'sensor'|'medic', itemId? }
   const [attackPrimed, setAttackPrimed] = useState(false); // Prime attack before moving
   const [playerGuesses, setPlayerGuesses] = useState({}); // Track player team guesses: { [playerId]: 'none' | 'human' | 'alien' }
+  const [trackerWidth, setTrackerWidth] = useState(350); // Default width in px
+  const [isResizing, setIsResizing] = useState(false);
+  const [pulsingSectors, setPulsingSectors] = useState(new Set()); // Set of sector labels pulsing
+
+  // Watch for new announcements to trigger visual effects (pulse)
+  React.useEffect(() => {
+    if (!gameState?.announcements || gameState.announcements.length === 0) return;
+
+    const latest = gameState.announcements[gameState.announcements.length - 1];
+
+    // Check if we should pulse (prevent re-pulsing old events on re-render by checking timestamp)
+    // A simple way is to trust that strict mode/re-renders wont double-trigger visuals too badly,
+    // or use a ref to track processed announcement ID. For now, simple check.
+    if (Date.now() - latest.timestamp < 3000) { // Only pulse if event is fresh (< 3s)
+      if (latest.type === 'NOISE' || latest.type === 'NOISE_ECHO' || latest.type === 'CAT') {
+        let sectorsToPulse = [];
+        if (latest.sector) sectorsToPulse.push(latest.sector);
+        if (latest.sectors) sectorsToPulse.push(...latest.sectors); // For CAT or multi-sector noise
+
+        if (sectorsToPulse.length > 0) {
+          setPulsingSectors(prev => {
+            const next = new Set(prev);
+            sectorsToPulse.forEach(s => next.add(s));
+            return next;
+          });
+
+          // Remove pulse after 3 seconds
+          setTimeout(() => {
+            setPulsingSectors(prev => {
+              const next = new Set(prev);
+              sectorsToPulse.forEach(s => next.delete(s));
+              return next;
+            });
+          }, 3000);
+        }
+      }
+    }
+  }, [gameState?.announcements]);
+
+  // Host is never "playing" - they're spectating
+  const startResizing = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((e) => {
+    if (isResizing) {
+      // Calculate new width based on window width minus mouse position
+      const newWidth = window.innerWidth - e.clientX;
+      // Clamp width (min 250px, max 50% of screen)
+      if (newWidth > 250 && newWidth < window.innerWidth * 0.5) {
+        setTrackerWidth(newWidth);
+      }
+    }
+  }, [isResizing]);
+
+  // Add global event listeners for resizing
+  React.useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizing, resize, stopResizing]);
 
   const myPlayer = gameState?.myPlayer;
   // Host is never "playing" - they're spectating
@@ -270,7 +342,7 @@ function GameBoard({
   }
 
   return (
-    <div className={`game-board ${showTracker ? 'with-tracker' : ''}`}>
+    <div className={`game-board ${showTracker ? 'with-tracker' : ''} ${isMyTurn ? 'my-turn' : ''}`}>
       {/* Top: Player Token Bank */}
       <PlayerTokenBank
         players={gameState.players}
@@ -341,10 +413,13 @@ function GameBoard({
               ghostTokens={ghostTokens}
               players={gameState.players}
               isHost={isHost}
+              playerGuesses={playerGuesses}
+              showAllPlayers={isHost || myPlayer?.isSpectator || gameState?.phase === 'ended'}
               escapeHatchStatus={gameState.escapeHatchStatus}
               selectedGhostPlayer={selectedGhostPlayer}
               onHexClick={handleHexClick}
               highlightMode={getHighlightMode()}
+              pulsingSectors={pulsingSectors}
             />
 
             {/* Action Buttons */}
@@ -382,18 +457,27 @@ function GameBoard({
 
         {/* Player Tracker Panel (Split Screen) */}
         {showTracker && (
-          <div className="tracker-panel">
-            <PlayerTracker
-              announcements={gameState.announcements}
-              players={gameState.players}
-              currentTurn={gameState.currentTurn}
-              maxTurns={gameState.maxTurns}
-              firstPlayerId={gameState.firstPlayerId}
-              onClose={() => setShowTracker(false)}
+          <>
+            <div
+              className={`resize-handle ${isResizing ? 'active' : ''}`}
+              onMouseDown={startResizing}
             />
-          </div>
+            <div className="tracker-panel" style={{ width: `${trackerWidth}px`, flex: 'none' }}>
+              <PlayerTracker
+                announcements={gameState.announcements}
+                players={gameState.players}
+                currentTurn={gameState.currentTurn}
+                maxTurns={gameState.maxTurns}
+                firstPlayerId={gameState.firstPlayerId}
+                onClose={() => setShowTracker(false)}
+              />
+            </div>
+          </>
         )}
       </div>
+
+      {/* Floating Log Toasts */}
+      <LogToast announcements={gameState.announcements} />
 
       {/* Card Modal for drawn cards */}
       {drawnCard && (
