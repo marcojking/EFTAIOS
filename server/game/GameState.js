@@ -59,9 +59,14 @@ class GameState {
   }
 
   startGame(mapData) {
+    // Need at least 2 players to start
+    if (!this.players || this.players.length < 2) {
+      return { success: false, message: 'Need at least 2 players to start' };
+    }
+
     if (mapData) {
       this.map = mapData;
-      // Re-initialize escape hatches if map wasn't present at start
+      // Re-initialize escape hatches
       if (this.map && this.map.grid) {
         this.escapeHatchStatus = {};
         this.map.grid.forEach(hex => {
@@ -72,10 +77,16 @@ class GameState {
       }
     }
 
-    // Now assign roles to the current players
-    // We recreate the players list with roles assigned
+    if (!this.map) {
+      return { success: false, message: 'No map selected' };
+    }
+
+    // Assign roles to the current players
     this.players = this.assignRoles(this.players);
-    this.phase = 'playing';
+
+    // Initialize the game (turn order, first player, etc.)
+    this.start();
+
     return { success: true };
   }
 

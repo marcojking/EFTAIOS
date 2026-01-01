@@ -228,18 +228,15 @@ function handleMessage(ws, message) {
 
     case 'START_GAME': {
       const roomCode = client.roomCode;
-      const gameState = roomManager.getRoom(roomCode); // Get specific room!
+      const gameState = roomManager.getRoom(roomCode);
 
       if (gameState && client.isHost) {
-        if (message.mapData) {
-          gameState.setMap(message.mapData);
-        }
-
-        const started = gameState.startGame();
-        if (started) {
+        // Pass mapData to startGame which handles setting the map
+        const result = gameState.startGame(message.mapData);
+        if (result && result.success) {
           broadcastGameState(roomCode);
         } else {
-          sendTo(ws, { type: 'ERROR', message: 'Not enough players to start' });
+          sendTo(ws, { type: 'ERROR', message: result?.message || 'Failed to start game' });
         }
       }
       break;
