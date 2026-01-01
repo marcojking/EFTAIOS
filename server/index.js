@@ -335,7 +335,9 @@ function handleMessage(ws, message) {
     case 'ATTACK':
     case 'USE_ESCAPE_HATCH':
     case 'END_TURN':
-    case 'PRIME_ATTACK': {
+    case 'PRIME_ATTACK':
+    case 'USE_POWER':
+    case 'DECLARE_SECOND_NOISE': {
       const roomCode = client.roomCode;
       const gameState = roomManager.getRoom(roomCode);
 
@@ -368,12 +370,38 @@ function handleMessage(ws, message) {
           result = gameState.endTurn(client.id);
         } else if (message.type === 'PRIME_ATTACK') {
           result = gameState.primeAttack(client.id, message.primed);
+        } else if (message.type === 'USE_POWER') {
+          // Route power usage to appropriate method
+          switch (message.powerId) {
+            case 'free_teleport':
+              result = gameState.useFreeTeport(client.id);
+              break;
+            case 'reveal_identity':
+              result = gameState.useRevealIdentity(client.id, message.targetPlayerId);
+              break;
+            case 'stay_still':
+              result = gameState.useStayStill(client.id);
+              // If Stay Still on dangerous sector, send card info to player
+              if (result.success && result.cardDrawn) {
+                sendTo(ws, {
+                  type: 'CARD_DRAWN',
+                  card: result.cardDrawn,
+                  itemCard: result.itemDrawn || null,
+                  targetSector: result.targetSector
+                });
+              }
+              break;
+            default:
+              result = { success: false, error: 'Unknown power' };
+          }
+        } else if (message.type === 'DECLARE_SECOND_NOISE') {
+          result = gameState.declareSecondNoise(client.id, message.sector);
         }
 
         if (result.success) {
           broadcastGameState(roomCode);
         } else {
-          sendTo(ws, { type: 'ERROR', message: result.message });
+          sendTo(ws, { type: 'ERROR', message: result.message || result.error });
         }
       }
       break;

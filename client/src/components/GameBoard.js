@@ -40,6 +40,23 @@ function GameBoard({
   const isMyTurn = !isHost && gameState?.currentPlayerId === clientId;
   const currentTurnPlayer = gameState?.players?.find(p => p.id === gameState.currentPlayerId);
 
+  // Derive pending states from gameState.pendingAction (from server)
+  const serverPendingSecondNoise = useMemo(() => {
+    const action = gameState?.pendingAction;
+    if (action?.type === 'SECOND_NOISE' || action?.type === 'CAT_NOISE') {
+      return { firstSector: action.firstSector };
+    }
+    return pendingSecondNoise || null;
+  }, [gameState?.pendingAction, pendingSecondNoise]);
+
+  const serverPendingEscapeChoice = useMemo(() => {
+    const action = gameState?.pendingAction;
+    if (action?.type === 'ESCAPE_CHOICE' && action?.cards) {
+      return { cards: action.cards };
+    }
+    return pendingEscapeChoice || null;
+  }, [gameState?.pendingAction, pendingEscapeChoice]);
+
   // Calculate reachable sectors for movement
   const reachableSectors = useMemo(() => {
     if (!myPlayer || !isMyTurn || !gameState?.map) return [];
@@ -91,7 +108,7 @@ function GameBoard({
     }
 
     // If selecting second noise (Pilot power or Cat item)
-    if (pendingSecondNoise) {
+    if (serverPendingSecondNoise) {
       onDeclareSecondNoise(sector);
       return;
     }
@@ -107,7 +124,7 @@ function GameBoard({
     if (isMyTurn && myPlayer?.alive && !myPlayer?.escaped) {
       onMove(sector);
     }
-  }, [selectedGhostPlayer, selectedItem, noiseDeclarationSector, pendingSecondNoise, attackPrimed, isMyTurn, myPlayer, onMove, onMoveAndAttack, onDeclareNoise, onDeclareSecondNoise, onUseItem]);
+  }, [selectedGhostPlayer, selectedItem, noiseDeclarationSector, serverPendingSecondNoise, attackPrimed, isMyTurn, myPlayer, onMove, onMoveAndAttack, onDeclareNoise, onDeclareSecondNoise, onUseItem]);
 
   // Handle ghost token selection from bank
   const handleGhostSelect = useCallback((playerId) => {
@@ -241,7 +258,7 @@ function GameBoard({
   // Determine highlight mode
   const getHighlightMode = () => {
     if (noiseDeclarationSector === 'any') return 'noise-select';
-    if (pendingSecondNoise) return 'noise-select';
+    if (serverPendingSecondNoise) return 'noise-select';
     if (selectedItem) return 'item-target';
     if (attackPrimed) return 'attack-primed';
     return null;
@@ -388,11 +405,11 @@ function GameBoard({
       )}
 
       {/* Noise Selection Overlay */}
-      {(noiseDeclarationSector === 'any' || pendingSecondNoise) && (
+      {(noiseDeclarationSector === 'any' || serverPendingSecondNoise) && (
         <div className="noise-select-overlay">
           <div className="noise-select-message">
-            {pendingSecondNoise
-              ? `Select SECOND sector for noise (first: ${pendingSecondNoise.firstSector})`
+            {serverPendingSecondNoise
+              ? `Select SECOND sector for noise (first: ${serverPendingSecondNoise.firstSector})`
               : 'Click any sector to declare noise there'
             }
           </div>
@@ -434,13 +451,13 @@ function GameBoard({
       )}
 
       {/* Escape Card Choice Modal for Engineer */}
-      {pendingEscapeChoice && (
+      {serverPendingEscapeChoice && (
         <div className="escape-choice-overlay">
           <div className="escape-choice-modal">
             <h3>Choose Escape Card (Engineer Power)</h3>
             <p>You drew two cards. Choose which one to use:</p>
             <div className="escape-cards">
-              {pendingEscapeChoice.cards.map((card, index) => (
+              {serverPendingEscapeChoice.cards.map((card, index) => (
                 <button
                   key={index}
                   className={`escape-card-btn ${card.type === 'GREEN' ? 'working' : 'damaged'}`}

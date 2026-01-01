@@ -104,8 +104,9 @@ class GameState {
     }
 
     const numPlayers = playerList.length;
-    const numAliens = Math.ceil(numPlayers / 2);
-    const numHumans = numPlayers - numAliens;
+    // Round up humans when odd number of players (e.g., 5 players = 3 humans, 2 aliens)
+    const numHumans = Math.ceil(numPlayers / 2);
+    const numAliens = numPlayers - numHumans;
 
     // Get characters
     const humanChars = shuffle([...CHARACTERS.HUMANS]).slice(0, numHumans);
@@ -248,7 +249,7 @@ class GameState {
         return { success: true, skippedCard: true };
       }
 
-      // Captain's "First Safe" power - skip first dangerous card
+      // Captain's "First Safe" power - skip first dangerous card, announce silence
       if (player.character?.power?.id === 'first_safe' && player.powerUsage?.firstSafeAvailable) {
         player.powerUsage.firstSafeAvailable = false;
         this.addAnnouncement({
@@ -256,7 +257,14 @@ class GameState {
           playerId: player.id,
           playerName: player.name,
           power: 'First Safe',
-          message: `${player.name} used First Safe - no card drawn.`
+          message: `${player.name} (Captain) used First Safe!`
+        });
+        // Announce silence as if stepping on a safe sector
+        this.addAnnouncement({
+          type: 'SILENCE',
+          playerId: player.id,
+          playerName: player.name,
+          message: `${player.name}: Silence in all sectors.`
         });
         this.endTurn();
         return { success: true, powerUsed: 'first_safe' };
@@ -881,7 +889,7 @@ class GameState {
       return { success: false, error: 'Invalid noise declaration' };
     }
 
-    // Pilot's Double Noise power
+    // Cat item: noise at actual sector + chosen sector
     if (useCat) {
       const catItemIndex = player.items.findIndex(i => i.type === 'CAT');
       if (catItemIndex === -1) {
@@ -899,26 +907,28 @@ class GameState {
         message: `${player.name} uses Cat card: declare noise in two sectors.`
       });
 
-      // Set pending action for second noise
+      // First noise is at player's ACTUAL position, second is chosen
+      // Set pending action for second noise selection
       this.pendingAction = {
-        type: 'CAT_NOISE', // Uses CAT_NOISE type to handle final announcement differently
+        type: 'CAT_NOISE',
         playerId: player.id,
-        firstSector: sector
+        firstSector: player.position  // Use actual position, not passed sector
       };
 
-      return { success: true, requiresSecondNoise: true, firstSector: sector };
+      return { success: true, requiresSecondNoise: true, firstSector: player.position };
     }
 
+    // Pilot's Double Noise power: noise at actual sector + chosen sector
     if (useDoublePower && player.character?.power?.id === 'double_noise') {
       if (!player.powerUsage?.usesRemaining || player.powerUsage.usesRemaining <= 0) {
         return { success: false, error: 'Double Noise power already used' };
       }
 
-      // Set pending action for second noise
+      // First noise is at player's ACTUAL position, second is chosen
       this.pendingAction = {
         type: 'SECOND_NOISE',
         playerId: player.id,
-        firstSector: sector
+        firstSector: player.position  // Use actual position, not passed sector
       };
 
       player.powerUsage.usesRemaining--;
@@ -931,7 +941,7 @@ class GameState {
         message: `${player.name} (Pilot) uses Double Noise!`
       });
 
-      return { success: true, requiresSecondNoise: true, firstSector: sector };
+      return { success: true, requiresSecondNoise: true, firstSector: player.position };
     }
 
     if (isSilence) {
@@ -1206,11 +1216,16 @@ class GameState {
   }
 
   // Co-Pilot's free teleport power
+  // Teleports BEFORE movement - player can then move normally from Human Sector
   useFreeTeport(playerId) {
     const player = this.players.find(p => p.id === playerId);
 
     if (!player) {
       return { success: false, error: 'Player not found' };
+    }
+
+    if (this.getCurrentPlayer().id !== playerId) {
+      return { success: false, error: 'Not your turn' };
     }
 
     if (player.character?.power?.id !== 'free_teleport') {
@@ -1233,19 +1248,25 @@ class GameState {
       playerId: player.id,
       playerName: player.name,
       power: 'Free Teleport',
-      message: `${player.name} (Co-Pilot) teleported to Human Sector!`
+      message: `${player.name} (Co-Pilot) teleported to Human Sector! They may still move this turn.`
     });
 
+    // NOTE: Do NOT end turn - player can still move normally from Human Sector
     return { success: true, teleportedTo: humanStart?.label };
   }
 
   // Medic's reveal identity power
+  // Broadcasts popup to ALL players showing target's identity and power
   useRevealIdentity(playerId, targetPlayerId) {
     const player = this.players.find(p => p.id === playerId);
     const target = this.players.find(p => p.id === targetPlayerId);
 
     if (!player || !target) {
       return { success: false, error: 'Player not found' };
+    }
+
+    if (this.getCurrentPlayer().id !== playerId) {
+      return { success: false, error: 'Not your turn' };
     }
 
     if (player.character?.power?.id !== 'reveal_identity') {
@@ -1259,28 +1280,47 @@ class GameState {
     player.powerUsage.usesRemaining--;
     target.revealed = true;
 
+    // Build popup content with full identity info
+    const roleText = target.role.toUpperCase();
+    const characterName = target.character?.name || 'Unknown';
+    const powerName = target.character?.power?.name || 'None';
+    const powerDesc = target.character?.power?.description || '';
+
+    // Add announcement for player tracker (special type for non-turn row)
     this.addAnnouncement({
-      type: 'POWER_USED',
+      type: 'REVEAL_IDENTITY',
       playerId: player.id,
       playerName: player.name,
-      power: 'Reveal Identity',
       targetId: target.id,
       targetName: target.name,
       targetRole: target.role,
-      message: `${player.name} (Medic) revealed ${target.name}'s identity: ${target.role.toUpperCase()}!`
+      targetCharacter: characterName,
+      targetPower: powerName,
+      message: `${player.name} (Medic) revealed ${target.name}'s identity!`
     });
+
+    // Broadcast popup to ALL players
+    this.broadcastPopup(
+      'reveal',
+      `${target.name} REVEALED!`,
+      `Role: ${roleText}\nCharacter: ${characterName}\nPower: ${powerName}`,
+      powerDesc
+    );
 
     return {
       success: true,
       revealed: {
         id: target.id,
         name: target.name,
-        role: target.role
+        role: target.role,
+        character: characterName,
+        power: powerName
       }
     };
   }
 
   // Executive Officer's stay still power
+  // Stay in current sector: if dangerous, draw card; if safe, announce silence
   useStayStill(playerId) {
     const player = this.players.find(p => p.id === playerId);
 
@@ -1300,6 +1340,10 @@ class GameState {
       return { success: false, error: 'Stay Still already used' };
     }
 
+    // Check current sector type
+    const currentSector = this.map.grid.find(h => h.label === player.position);
+    const isDangerous = currentSector?.state === 'dangerous';
+
     player.powerUsage.usesRemaining--;
 
     this.addAnnouncement({
@@ -1307,13 +1351,50 @@ class GameState {
       playerId: player.id,
       playerName: player.name,
       power: 'Stay Still',
-      message: `${player.name} (Executive Officer) stayed still.`
+      message: `${player.name} (Executive Officer) used Stay Still.`
     });
 
-    // End turn without any announcement
-    this.endTurn();
+    // If on dangerous sector, draw a card as if moving into that sector
+    if (isDangerous) {
+      const card = this.drawDangerousCard();
 
-    return { success: true };
+      // Add item from silence card if present
+      let itemDrawn = null;
+      if (card.hasItem && card.itemData) {
+        itemDrawn = {
+          ...card.itemData,
+          id: `ITEM_${Date.now()}`
+        };
+        player.items.push(itemDrawn);
+      }
+
+      // Set pending action for noise declaration
+      this.pendingAction = {
+        type: 'NOISE_DECLARATION',
+        playerId: player.id,
+        sector: player.position,
+        card: card
+      };
+
+      return {
+        success: true,
+        stayStill: true,
+        cardDrawn: card,
+        itemDrawn: itemDrawn,
+        targetSector: player.position
+      };
+    } else {
+      // Safe sector - announce silence and end turn
+      this.addAnnouncement({
+        type: 'SILENCE',
+        playerId: player.id,
+        playerName: player.name,
+        message: `${player.name}: Silence in all sectors.`
+      });
+
+      this.endTurn();
+      return { success: true, stayStill: true, silent: true };
+    }
   }
 
   drawDangerousCard() {

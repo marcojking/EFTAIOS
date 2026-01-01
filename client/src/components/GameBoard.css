@@ -535,18 +535,18 @@
     overflow: visible;
   }
 
-  .game-sidebar.left {
+  /* Tracker panel - appears right after board on mobile */
+  .tracker-panel {
     order: 2;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  .game-sidebar.right {
+  .game-sidebar.left {
     order: 3;
   }
 
-  /* Tracker panel */
-  .tracker-panel {
+  .game-sidebar.right {
     order: 4;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   /* Action buttons - make them bigger and fixed at bottom */

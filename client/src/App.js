@@ -31,6 +31,8 @@ function App() {
   const [landingError, setLandingError] = useState(null);
   const [drawnCard, setDrawnCard] = useState(null);
   const [popup, setPopup] = useState(null);
+  const [pendingSecondNoise, setPendingSecondNoise] = useState(null);
+  const [pendingEscapeChoice, setPendingEscapeChoice] = useState(null);
 
   // Connect to server on mount
   useEffect(() => {
@@ -158,6 +160,18 @@ function App() {
     send({ type: 'PRIME_ATTACK', primed });
   }, [send]);
 
+  const handleUsePower = useCallback((powerId, targetPlayerId = null) => {
+    send({ type: 'USE_POWER', powerId, targetPlayerId });
+  }, [send]);
+
+  const handleDeclareSecondNoise = useCallback((sector) => {
+    send({ type: 'DECLARE_SECOND_NOISE', sector });
+  }, [send]);
+
+  const handleChooseEscapeCard = useCallback((cardIndex) => {
+    send({ type: 'USE_ESCAPE_HATCH', cardIndex });
+  }, [send]);
+
   const handleCardDismiss = useCallback(() => {
     setDrawnCard(null);
   }, []);
@@ -225,13 +239,17 @@ function App() {
             onMove={handleMovePlayer}
             onMoveAndAttack={handleMoveAndAttack}
             onDeclareNoise={handleDeclareNoise}
+            onDeclareSecondNoise={handleDeclareSecondNoise}
             onUseItem={handleUseItem}
+            onUsePower={handleUsePower}
             onAttack={handleAttack}
-            onUseEscapeHatch={handleUseEscapeHatch}
+            onChooseEscapeCard={handleChooseEscapeCard}
             onEndTurn={handleEndTurn}
             onPrimeAttack={handlePrimeAttack}
             drawnCard={drawnCard}
             onCardDismiss={handleCardDismiss}
+            pendingSecondNoise={pendingSecondNoise}
+            pendingEscapeChoice={pendingEscapeChoice}
           />
         </div>
       )}
