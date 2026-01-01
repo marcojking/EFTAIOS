@@ -1,9 +1,12 @@
 .lobby-screen {
   min-height: 100vh;
+  height: auto;
   padding: 20px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .lobby-container {

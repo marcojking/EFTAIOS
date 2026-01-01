@@ -118,10 +118,12 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                             <label>Room Code</label>
                             <input
                                 type="text"
-                                maxLength="4"
                                 placeholder="ABCD"
                                 value={roomCode}
-                                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                                onChange={(e) => {
+                                    const val = e.target.value.toUpperCase().slice(0, 4);
+                                    setRoomCode(val);
+                                }}
                                 required
                             />
                         </div>
@@ -132,9 +134,11 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                                 type="text"
                                 placeholder="Enter Name"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value.slice(0, 12);
+                                    setName(val);
+                                }}
                                 required
-                                maxLength="12"
                             />
                         </div>
 

@@ -36,10 +36,11 @@ function Lobby({ connected, isHost, onStartGame, onKickPlayer, roomCode, gameSta
   };
 
   const handleStartGame = () => {
+    console.log('Lobby: handleStartGame called, mapData:', getSelectedMapData()?.title);
     onStartGame(getSelectedMapData());
   };
 
-  const minPlayers = 2;
+  const minPlayers = 1;
   const playerCount = players.length;
   const canStart = isHost && playerCount >= minPlayers;
   const mapInfo = getSelectedMapInfo();

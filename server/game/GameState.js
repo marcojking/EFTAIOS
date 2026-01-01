@@ -66,9 +66,9 @@ class GameState {
   }
 
   startGame(mapData) {
-    // Need at least 2 players to start
-    if (!this.players || this.players.length < 2) {
-      return { success: false, message: 'Need at least 2 players to start' };
+    // Need at least 1 player to start (Debugging)
+    if (!this.players || this.players.length < 1) {
+      return { success: false, message: 'Need at least 1 player to start' };
     }
 
     if (mapData) {

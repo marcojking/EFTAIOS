@@ -93,11 +93,13 @@ function useWebSocket() {
   }, []);
 
   const send = useCallback((message) => {
+    console.log('useWebSocket.send called:', message.type, 'readyState:', wsRef.current?.readyState);
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('Sending message:', JSON.stringify(message));
       wsRef.current.send(JSON.stringify(message));
       return true;
     } else {
-      console.warn('WebSocket not connected, queuing message:', message.type);
+      console.warn('WebSocket not connected, queuing message:', message.type, 'State:', wsRef.current?.readyState);
       pendingMessagesRef.current.push(message);
       return false;
     }

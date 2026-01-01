@@ -375,3 +375,64 @@
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .player-hud {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .hud-section {
+    padding: 12px;
+  }
+
+  .hud-section.identity {
+    padding: 15px 12px;
+  }
+
+  .character-name {
+    font-size: 1.1rem;
+  }
+
+  .position-display {
+    font-size: 1.6rem;
+    padding: 8px;
+  }
+
+  .item-card {
+    padding: 12px;
+    min-height: 56px;
+  }
+
+  .item-icon {
+    font-size: 1.8rem;
+    width: 44px;
+  }
+
+  .use-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    min-height: 36px;
+  }
+
+  .power-use-btn {
+    padding: 10px;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hud-section {
+    padding: 10px;
+  }
+
+  .character-name {
+    font-size: 1rem;
+  }
+
+  .position-display {
+    font-size: 1.4rem;
+  }
+}

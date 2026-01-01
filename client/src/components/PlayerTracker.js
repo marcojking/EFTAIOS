@@ -215,7 +215,6 @@ function PlayerTracker({ announcements, players, currentTurn, maxTurns, firstPla
                     <span className="player-name-small">{player.name}</span>
                     {!player.alive && <span className="status-badge dead" title="Killed">☠️</span>}
                     {player.escaped && <span className="status-badge escaped" title="Escaped">🚀</span>}
-                    {player.alive && !player.escaped && player.role === 'alien' && player.revealed && <span className="status-badge alien" title="Revealed Alien">👽</span>}
                   </div>
                 </th>
               ))}

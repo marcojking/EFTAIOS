@@ -33,6 +33,7 @@ function GameBoard({
   const [showLog, setShowLog] = useState(false);  // Game log hidden by default
   const [targetSelectionMode, setTargetSelectionMode] = useState(null); // { type: 'sensor'|'medic', itemId? }
   const [attackPrimed, setAttackPrimed] = useState(false); // Prime attack before moving
+  const [playerGuesses, setPlayerGuesses] = useState({}); // Track player team guesses: { [playerId]: 'none' | 'human' | 'alien' }
 
   const myPlayer = gameState?.myPlayer;
   // Host is never "playing" - they're spectating
@@ -129,6 +130,19 @@ function GameBoard({
         }
       });
       return newTokens;
+    });
+  }, []);
+
+  // Toggle player guess (cycle through: none -> human -> alien -> none)
+  const handleToggleGuess = useCallback((playerId) => {
+    setPlayerGuesses(prev => {
+      const current = prev[playerId] || 'none';
+      let next;
+      if (current === 'none') next = 'human';
+      else if (current === 'human') next = 'alien';
+      else next = 'none';
+
+      return { ...prev, [playerId]: next };
     });
   }, []);
 
@@ -248,6 +262,8 @@ function GameBoard({
         onGhostSelect={handleGhostSelect}
         onGhostRemove={handleGhostRemove}
         isHost={isHost}
+        playerGuesses={playerGuesses}
+        onToggleGuess={handleToggleGuess}
       />
 
       {/* Main Content Area */}

@@ -230,14 +230,32 @@ function handleMessage(ws, message) {
       const roomCode = client.roomCode;
       const gameState = roomManager.getRoom(roomCode);
 
-      if (gameState && client.isHost) {
-        // Pass mapData to startGame which handles setting the map
-        const result = gameState.startGame(message.mapData);
-        if (result && result.success) {
-          broadcastGameState(roomCode);
-        } else {
-          sendTo(ws, { type: 'ERROR', message: result?.message || 'Failed to start game' });
-        }
+      console.log('START_GAME received:', {
+        roomCode,
+        isHost: client.isHost,
+        hasGameState: !!gameState,
+        playersCount: gameState?.players?.length || 0
+      });
+
+      if (!gameState) {
+        console.log('START_GAME failed: No game state for room', roomCode);
+        sendTo(ws, { type: 'ERROR', message: 'Room not found' });
+        break;
+      }
+
+      if (!client.isHost) {
+        console.log('START_GAME failed: Client is not host');
+        sendTo(ws, { type: 'ERROR', message: 'Only the host can start the game' });
+        break;
+      }
+
+      const result = gameState.startGame(message.mapData);
+      console.log('START_GAME result:', result);
+
+      if (result && result.success) {
+        broadcastGameState(roomCode);
+      } else {
+        sendTo(ws, { type: 'ERROR', message: result?.message || 'Failed to start game' });
       }
       break;
     }

@@ -112,6 +112,7 @@ function App() {
   }, [isConnected, send]);
 
   const handleStartGame = useCallback((mapData) => {
+    console.log('App: handleStartGame sending START_GAME with mapData:', mapData?.title);
     send({ type: 'START_GAME', mapData });
   }, [send]);
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import './PlayerTokenBank.css';
 
 function PlayerTokenBank({
@@ -8,8 +8,14 @@ function PlayerTokenBank({
   placedGhostPlayerIds,
   onGhostSelect,
   onGhostRemove,
-  isHost
+  isHost,
+  playerGuesses = {},
+  onToggleGuess
 }) {
+  // Long-press detection for mobile
+  const [longPressTriggered, setLongPressTriggered] = useState(false);
+  const longPressTimerRef = useRef(null);
+  const longPressDuration = 500; // 500ms hold to trigger
   // Get player display info
   const getPlayerInfo = (player) => {
     const initials = player.name
@@ -19,11 +25,12 @@ function PlayerTokenBank({
       .toUpperCase()
       .slice(0, 2);
 
-    // Determine color
+    // Determine color based on host status or player guesses
     let color = '#888';
     let bgColor = 'rgba(136, 136, 136, 0.2)';
 
-    if (player.revealed || isHost) {
+    if (isHost) {
+      // Host can see actual roles
       if (player.role === 'human') {
         color = '#00d9ff';
         bgColor = 'rgba(0, 217, 255, 0.2)';
@@ -31,6 +38,17 @@ function PlayerTokenBank({
         color = '#e94560';
         bgColor = 'rgba(233, 69, 96, 0.2)';
       }
+    } else {
+      // Non-host players use their own guesses
+      const guess = playerGuesses[player.id] || 'none';
+      if (guess === 'human') {
+        color = '#00ff88';  // Green for suspected human
+        bgColor = 'rgba(0, 255, 136, 0.2)';
+      } else if (guess === 'alien') {
+        color = '#e94560';  // Red for suspected alien
+        bgColor = 'rgba(233, 69, 96, 0.2)';
+      }
+      // else stays gray (no guess)
     }
 
     // Status
@@ -44,6 +62,43 @@ function PlayerTokenBank({
   const isCurrentTurn = (playerId) => playerId === currentPlayerId;
   const isPlacedOnBoard = (playerId) => placedGhostPlayerIds.has(playerId);
   const isSelected = (playerId) => selectedGhostPlayer === playerId;
+
+  // Mobile long-press handlers
+  const handleTouchStart = (playerId) => {
+    if (isHost || !onToggleGuess) return;
+
+    setLongPressTriggered(false);
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressTriggered(true);
+      onToggleGuess(playerId);
+      // Optional: add haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, longPressDuration);
+  };
+
+  const handleTouchEnd = (playerId, e) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+
+    // If long-press was triggered, prevent the click event
+    if (longPressTriggered) {
+      e.preventDefault();
+      setLongPressTriggered(false);
+    } else {
+      // Normal tap - select ghost token
+      onGhostSelect(playerId);
+    }
+  };
+
+  const handleTouchCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    setLongPressTriggered(false);
+  };
 
   return (
     <div className="player-token-bank">
@@ -74,8 +129,22 @@ function PlayerTokenBank({
                   backgroundColor: bgColor,
                   color: color
                 }}
-                onClick={() => onGhostSelect(player.id)}
-                title={`${player.name}${isCurrent ? ' (Current Turn)' : ''}`}
+                onClick={() => {
+                  // Only trigger if not a long-press
+                  if (!longPressTriggered) {
+                    onGhostSelect(player.id);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (!isHost && onToggleGuess) {
+                    onToggleGuess(player.id);
+                  }
+                }}
+                onTouchStart={() => handleTouchStart(player.id)}
+                onTouchEnd={(e) => handleTouchEnd(player.id, e)}
+                onTouchCancel={handleTouchCancel}
+                title={`${player.name}${isCurrent ? ' (Current Turn)' : ''}${!isHost ? ' | Right-click or long-press to mark guess' : ''}`}
               >
                 <span className="token-initials">{initials}</span>
                 {isCurrent && <span className="turn-indicator-dot" />}

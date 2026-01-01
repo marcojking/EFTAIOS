@@ -448,15 +448,91 @@
   }
 }
 
-@media (max-width: 900px) {
-  .game-main {
-    flex-direction: column;
+/* Tablet and Mobile */
+@media (max-width: 768px) {
+  .game-board {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
+  .game-content-wrapper {
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .game-main {
+    flex-direction: column;
+    overflow: visible;
+    height: auto;
+  }
+
+  .game-board.with-tracker .game-main {
+    flex: unset;
+  }
+
+  .game-board.with-tracker .tracker-panel {
+    flex: unset;
+    max-width: 100%;
+    min-width: unset;
+  }
+
+  /* Turn Indicator - Make it sticky on mobile */
+  .turn-indicator {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 12px 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .turn-number {
+    font-size: 0.9rem;
+    padding: 4px 10px;
+  }
+
+  .current-player {
+    font-size: 1.1rem;
+    flex: 1 1 100%;
+    text-align: center;
+  }
+
+  .current-player.highlight {
+    font-size: 1.2rem;
+  }
+
+  .toggle-buttons {
+    flex: 1 1 100%;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .toggle-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    min-width: 80px;
+  }
+
+  /* Center map area */
+  .game-center {
+    order: 1;
+    min-height: 40vh;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Sidebars become collapsible panels */
   .game-sidebar {
     width: 100%;
+    max-height: none;
     height: auto;
-    max-height: 200px;
+    order: 2;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: visible;
   }
 
   .game-sidebar.left {
@@ -467,8 +543,136 @@
     order: 3;
   }
 
+  /* Tracker panel */
+  .tracker-panel {
+    order: 4;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Action buttons - make them bigger and fixed at bottom */
+  .action-buttons {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 10px;
+    max-width: 100%;
+    z-index: 200;
+  }
+
+  .action-btn {
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    min-height: 44px;
+    min-width: 120px;
+  }
+
+  .prime-attack-btn {
+    min-width: 160px;
+  }
+
+  .prime-attack-btn.primed {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  /* Target selection modal - full screen on mobile */
+  .target-select-modal,
+  .escape-choice-modal {
+    width: 90%;
+    max-width: 400px;
+    padding: 20px;
+  }
+
+  .target-btn,
+  .escape-card-btn {
+    min-height: 50px;
+    font-size: 1.05rem;
+  }
+
+  /* Noise select message */
+  .noise-select-message {
+    top: 70px;
+    padding: 12px 20px;
+    font-size: 1rem;
+    max-width: 90%;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .turn-indicator {
+    padding: 10px 12px;
+  }
+
+  .turn-number {
+    font-size: 0.85rem;
+    padding: 3px 8px;
+  }
+
+  .current-player {
+    font-size: 1rem;
+  }
+
+  .current-player.highlight {
+    font-size: 1.1rem;
+  }
+
+  .toggle-btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    min-width: 70px;
+  }
+
+  .action-btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    min-width: 100px;
+  }
+
+  .target-select-modal h3,
+  .escape-choice-modal h3 {
+    font-size: 1rem;
+  }
+
+  .escape-cards {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .escape-card-btn {
+    width: 100%;
+  }
+}
+
+/* Landscape mobile - optimize vertical space */
+@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+  .turn-indicator {
+    padding: 8px 12px;
+  }
+
+  .turn-number {
+    font-size: 0.8rem;
+  }
+
+  .current-player {
+    font-size: 0.95rem;
+  }
+
   .game-center {
-    order: 1;
-    min-height: 50vh;
+    min-height: 30vh;
+  }
+
+  .action-buttons {
+    bottom: 5px;
+    gap: 6px;
+  }
+
+  .action-btn {
+    padding: 8px 14px;
+    font-size: 0.85rem;
   }
 }
