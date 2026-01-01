@@ -39,7 +39,8 @@ function GameBoard({
   const [playerGuesses, setPlayerGuesses] = useState({}); // Track player team guesses: { [playerId]: 'none' | 'human' | 'alien' }
   const [trackerWidth, setTrackerWidth] = useState(350); // Default width in px
   const [isResizing, setIsResizing] = useState(false);
-  const [pulsingSectors, setPulsingSectors] = useState(new Map()); // Map<sector, { type: 'noise'|'attack', kill: boolean }>
+  const [pulsingSectors, setPulsingSectors] = useState(new Map()); // Map<sector, { type: 'noise'|'attack', kill: boolean, ttl: number }>
+  const lastProcessedAnnouncementTime = React.useRef(0);
 
   // Drag & Drop State
   const [dragState, setDragState] = useState(null); // { playerId, color, initials, originSector (null if bank) }
@@ -67,21 +68,27 @@ function GameBoard({
 
   const handleGlobalEnd = useCallback((e) => {
     if (dragState) {
-      const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.changedTouches[0].clientX || e.clientX;
-      const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.changedTouches[0].clientY || e.clientY;
+      // Fix: Check if changedTouches exists properly
+      const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+      const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
 
       // Drop Detection
-      // We need to find if we dropped on a hex
-      // Since DragOverlay has pointer-events: none, we can use elementFromPoint
       const targetEl = document.elementFromPoint(clientX, clientY);
       const hexGroup = targetEl?.closest('.hex-group');
 
       let targetSector = null;
       if (hexGroup) {
-        // We need to extract the sector label. 
-        // We'll trust the HexGrid to add a data-sector attribute to the group
         targetSector = hexGroup.getAttribute('data-sector');
       }
+
+      console.log('Drag End:', {
+        dragState,
+        clientX,
+        clientY,
+        targetEl: targetEl?.tagName,
+        hexGroup: !!hexGroup,
+        targetSector
+      });
 
       if (targetSector) {
         // Dropped on a valid sector -> Move Ghost Token
@@ -101,9 +108,7 @@ function GameBoard({
           return newTokens;
         });
       } else {
-        // Dropped in void -> Remove from map (return to bank)
-        // Only if it was previously on the map (originSector is not null) OR we just want void drop to always clear?
-        // The requirement says: "if a user moves it and drops it in blank space (no hex) it should go back to the top bar"
+        // Dropped in void -> Return to bank
         setGhostTokens(prev => {
           const newTokens = { ...prev };
           Object.keys(newTokens).forEach(key => {
@@ -140,49 +145,66 @@ function GameBoard({
   React.useEffect(() => {
     if (!gameState?.announcements || gameState.announcements.length === 0) return;
 
-    const latest = gameState.announcements[gameState.announcements.length - 1];
+    // Process only new announcements (based on timestamp)
+    // We allow a small grace period for "freshness" (e.g. 10s) to show visuals on refresh if they JUST happened
+    const cutoff = Date.now() - 10000;
 
-    // Check if we should pulse (prevent re-pulsing old events on re-render by checking timestamp)
-    if (Date.now() - latest.timestamp < 3000) { // Only pulse if event is fresh (< 3s)
-      if (latest.type === 'NOISE' || latest.type === 'NOISE_ECHO' || latest.type === 'CAT') {
+    // Filter announcements we haven't processed yet OR are very recent and we might have missed
+    // (Simpler: just look at the tail of the log)
+    const recentAnnouncements = gameState.announcements.slice(-3);
+
+    recentAnnouncements.forEach(ann => {
+      // Skip if too old or already processed
+      if (ann.timestamp < cutoff || ann.timestamp <= lastProcessedAnnouncementTime.current) return;
+
+      lastProcessedAnnouncementTime.current = ann.timestamp;
+
+      if (ann.type === 'NOISE' || ann.type === 'NOISE_ECHO' || ann.type === 'CAT') {
         let sectorsToPulse = [];
-        if (latest.sector) sectorsToPulse.push(latest.sector);
-        if (latest.sectors) sectorsToPulse.push(...latest.sectors);
+        if (ann.sector) sectorsToPulse.push(ann.sector);
+        if (ann.sectors) sectorsToPulse.push(...ann.sectors);
 
         if (sectorsToPulse.length > 0) {
           setPulsingSectors(prev => {
             const next = new Map(prev);
-            // Ensure compatibility if prev was a Set (during migration)
-            if (prev instanceof Set) {
-              prev.forEach(s => next.set(s, { type: 'noise', kill: false }));
-            }
+            // Ensure compatibility
+            if (prev instanceof Set) prev.forEach(s => next.set(s, { type: 'noise', kill: false, ttl: 2 }));
 
-            sectorsToPulse.forEach(s => next.set(s, { type: 'noise', kill: false }));
+            sectorsToPulse.forEach(s => next.set(s, { type: 'noise', kill: false, ttl: 2 }));
             return next;
           });
         }
-      } else if (latest.type === 'ATTACK') {
-        // Red flash for attacks
-        if (latest.sector) {
-          const kill = latest.victims && latest.victims.length > 0;
+      } else if (ann.type === 'ATTACK') {
+        if (ann.sector) {
+          const kill = ann.victims && ann.victims.length > 0;
           setPulsingSectors(prev => {
             const next = new Map(prev);
-            // Ensure compatibility if prev was a Set
-            if (prev instanceof Set) {
-              prev.forEach(s => next.set(s, { type: 'noise', kill: false }));
-            }
+            if (prev instanceof Set) prev.forEach(s => next.set(s, { type: 'noise', kill: false, ttl: 2 }));
 
-            next.set(latest.sector, { type: 'attack', kill: kill });
+            next.set(ann.sector, { type: 'attack', kill: kill, ttl: 2 });
             return next;
           });
         }
       }
-    }
+    });
   }, [gameState?.announcements]);
 
-  // Clear pulsing sectors when turn changes (current player changes)
+  // Decrement TTL (Time To Live) for pulsing sectors when turn changes
   React.useEffect(() => {
-    setPulsingSectors(new Map());
+    setPulsingSectors(prev => {
+      const next = new Map();
+      // Handle Set compatibility case (clearing it out effectively)
+      if (prev instanceof Set) return next;
+
+      prev.forEach((value, key) => {
+        // Decrement TTL
+        const newTTL = value.ttl - 1;
+        if (newTTL > 0) {
+          next.set(key, { ...value, ttl: newTTL });
+        }
+      });
+      return next;
+    });
   }, [gameState?.currentPlayerId]);
 
   // Host is never "playing" - they're spectating
@@ -363,25 +385,26 @@ function GameBoard({
   }, [onDeclareNoise, onCardDismiss]);
 
   // Declare noise in current sector (for NOISE_YOUR_SECTOR)
-  const handleDeclareNoiseHere = useCallback((useCat = false) => {
+  const handleDeclareNoiseHere = useCallback((useCat = false, useDoublePower = false) => {
     // Use the explicit targetSector passed from server when the card was drawn
     // This ensures we always declare noise in the sector we moved INTO, not FROM
     const targetSector = drawnCard?.targetSector || gameState?.pendingAction?.sector || myPlayer?.position;
 
     console.log('Declare noise here:', { targetSector, drawnCard, pendingAction: gameState?.pendingAction, myPosition: myPlayer?.position });
 
-    // Sanitize useCat to ensure it's a boolean (prevent Event objects)
+    // Sanitize to ensure boolean
     const secureUseCat = typeof useCat === 'boolean' ? useCat : false;
+    const secureUseDoublePower = typeof useDoublePower === 'boolean' ? useDoublePower : false;
 
     if (targetSector) {
-      onDeclareNoise(targetSector, false, false, secureUseCat);
+      onDeclareNoise(targetSector, false, secureUseDoublePower, secureUseCat);
       setNoiseDeclarationSector(null);
       onCardDismiss && onCardDismiss();
     } else {
       // Fallback: use myPlayer.position if available
       console.error('No targetSector found for noise declaration');
       if (myPlayer?.position) {
-        onDeclareNoise(myPlayer.position, false, false, secureUseCat);
+        onDeclareNoise(myPlayer.position, false, secureUseDoublePower, secureUseCat);
         setNoiseDeclarationSector(null);
         onCardDismiss && onCardDismiss();
       }

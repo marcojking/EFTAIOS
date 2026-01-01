@@ -41,8 +41,13 @@ function CardModal({
 
   // Handle Double Noise power usage
   const handleUseDoubleNoise = () => {
-    // This triggers the double noise flow via onDeclareNoiseAnywhere with a flag
-    onDeclareNoiseAnywhere(true);
+    // If it's a "Noise in Your Sector" card, we pass useDoublePower=true to onDeclareNoiseHere
+    if (card.type === 'NOISE_YOUR_SECTOR') {
+      onDeclareNoiseHere(false, true); // useCat=false, useDoublePower=true
+    } else {
+      // For "Noise Any Sector", we trigger the double noise flow via onDeclareNoiseAnywhere(true)
+      onDeclareNoiseAnywhere(true);
+    }
   };
 
   // Handle Cat item usage - allows declaring noise anywhere instead of here
@@ -76,12 +81,17 @@ function CardModal({
               <>
                 <p>You must declare noise in your <strong>current sector</strong>.</p>
                 <div className="action-buttons">
-                  <button className="action-btn primary" onClick={() => onDeclareNoiseHere(false)}>
+                  <button className="action-btn primary" onClick={() => onDeclareNoiseHere(false, false)}>
                     Declare Noise Here
                   </button>
                   {hasCatItem && (
                     <button className="action-btn cat-btn" onClick={handleUseCat}>
                       🐱 Use Cat (Declare Anywhere)
+                    </button>
+                  )}
+                  {hasDoubleNoisePower && (
+                    <button className="action-btn power-btn" onClick={handleUseDoubleNoise}>
+                      ⚡ Use Double Noise Power (2 sectors)
                     </button>
                   )}
                 </div>

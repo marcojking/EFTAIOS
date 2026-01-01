@@ -153,10 +153,16 @@ function PlayerTracker({ announcements, players, currentTurn, maxTurns, firstPla
           type: 'cat'
         };
 
-      case 'SILENT_MOVE':
         return {
           text: 'S',
           full: 'Moved to a safe sector (no card drawn)',
+          type: 'silence'
+        };
+
+      case 'SILENT_SECTOR':
+        return {
+          text: 'S',
+          full: 'Silent Sector (Sedatives used)',
           type: 'silence'
         };
 

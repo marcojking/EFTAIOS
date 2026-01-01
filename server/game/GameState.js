@@ -248,10 +248,10 @@ class GameState {
 
         // Announce silence (since no card is drawn, it's effectively a Silent Sector)
         this.addAnnouncement({
-          type: 'SILENCE',
+          type: 'SILENT_SECTOR', // Explicit type for tracker 'S'
           playerId: player.id,
           playerName: player.name,
-          message: `${player.name} (Sedatives): Silence in all sectors.`
+          message: `${player.name}: Silent Sector.`
         });
 
         this.endTurn();
@@ -600,13 +600,16 @@ class GameState {
         if (humanStart) {
           victim.position = humanStart.label;
         }
-        survivors.push({ victim, reason: 'clone' });
-        this.addAnnouncement({
-          type: 'CLONE_USED',
-          playerId: victim.id,
-          playerName: victim.name,
-          message: `${victim.name} used Clone and respawned at Human Sector!`
-        });
+        // Silent Clone: Remove from survivors list so they disappear completely
+        // survivors.push({ victim, reason: 'clone' });
+
+        // Silent Clone: No announcement
+        // this.addAnnouncement({
+        //   type: 'CLONE_USED',
+        //   playerId: victim.id,
+        //   playerName: victim.name,
+        //   message: `${victim.name} used Clone and respawned at Human Sector!`
+        // });
         return;
       }
 
@@ -814,13 +817,16 @@ class GameState {
         if (humanStart) {
           victim.position = humanStart.label;
         }
-        survivors.push({ victim, reason: 'clone' });
-        this.addAnnouncement({
-          type: 'CLONE_USED',
-          playerId: victim.id,
-          playerName: victim.name,
-          message: `${victim.name} used Clone and respawned at Human Sector!`
-        });
+        // Silent Clone: Remove from survivors list so they disappear completely
+        // survivors.push({ victim, reason: 'clone' });
+
+        // Silent Clone: No announcement
+        // this.addAnnouncement({
+        //   type: 'CLONE_USED',
+        //   playerId: victim.id,
+        //   playerName: victim.name,
+        //   message: `${victim.name} used Clone and respawned at Human Sector!`
+        // });
         return;
       }
 
