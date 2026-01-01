@@ -2,19 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { GALILEI_MAP, GALATEA_MAP, FERMI_MAP } from '../data/maps';
 import './Lobby.css';
 
-function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastMessage, onStartGame, roomCode }) {
+function Lobby({ connected, isHost, onStartGame, roomCode, gameState }) {
   const [players, setPlayers] = useState([]);
   const [selectedMap, setSelectedMap] = useState('fermi'); // Default to Fermi (New)
-  const [ipIndex, setIpIndex] = useState(0); // For cycling through IPs
 
-  // Handle lobby updates
+  // Handle lobby updates from gameState
   useEffect(() => {
     if (gameState?.players) {
       setPlayers(gameState.players);
-    } else if (lastMessage?.type === 'LOBBY_UPDATE') {
-      setPlayers(lastMessage.players);
     }
-  }, [lastMessage, gameState]);
+  }, [gameState]);
 
   const getSelectedMapData = () => {
     switch (selectedMap) {
@@ -42,27 +39,10 @@ function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastM
     onStartGame(getSelectedMapData());
   };
 
-  // Get the best address for players to join
-  // Prefer lanAddress (from server) over what the user entered
-  // Get the best address for players to join
-  // Prefer lanAddress (from server) over what the user entered
-  const getJoinAddress = () => {
-    // If the server provided list of all IPs, allow cycling
-    if (lastMessage?.allOrignals && lastMessage.allOrignals.length > 0) {
-      return lastMessage.allOrignals[ipIndex % lastMessage.allOrignals.length];
-    }
-
-    if (lanAddress) {
-      return lanAddress;
-    }
-    return serverAddress;
-  };
-
   const minPlayers = 2;
-  const playerCount = players.filter(p => !p.isHost).length;
+  const playerCount = players.length;
   const canStart = isHost && playerCount >= minPlayers;
   const mapInfo = getSelectedMapInfo();
-  const joinAddress = getJoinAddress();
 
   return (
     <div className="lobby-screen">
@@ -77,15 +57,15 @@ function Lobby({ connected, isHost, playerName, serverAddress, lanAddress, lastM
         <div className="server-info">
           <span className="label">Room Code:</span>
           <span className="value room-code">{roomCode || 'Loading...'}</span>
-          <span className="label">You:</span>
-          <span className="value">{playerName} {isHost && '(Host)'}</span>
+          <span className="label">Role:</span>
+          <span className="value">{isHost ? 'Host / Spectator' : 'Player'}</span>
         </div>
 
         <div className="lobby-content">
           <div className="players-section">
             <h2>Players ({playerCount})</h2>
             <div className="players-list">
-              {players.filter(p => !p.isHost).map((player, index) => (
+              {players.map((player, index) => (
                 <div key={player.id} className="player-item">
                   <span className="player-number">{index + 1}</span>
                   <span className="player-name">{player.name}</span>
