@@ -208,6 +208,12 @@
   background: rgba(46, 213, 115, 0.2);
 }
 
+.action-cell.silence-all {
+  color: #ffa502;
+  background: rgba(255, 165, 2, 0.25);
+  font-weight: 500;
+}
+
 .action-cell.attack-hit {
   color: #ff4757;
   background: rgba(255, 71, 87, 0.3);

@@ -4,8 +4,8 @@ import './PlayerTracker.css';
 // Abbreviation key for announcements
 const ABBREVIATIONS = {
   'N': 'Noise in sector',
-  'SS': 'Silence in all sectors',
-  'SM': 'Silent move (safe sector)',
+  '—': 'Silence in all sectors',
+  'S': 'Silent move (safe sector)',
   'A': 'Attack in sector',
   'E': 'Escaped via',
   'EF': 'Escape failed',
@@ -15,8 +15,7 @@ const ABBREVIATIONS = {
   'DEF': 'Defense used',
   'CLN': 'Clone used',
   'MUT': 'Mutated to Alien',
-  'CAT': 'Cat (2 noises)',
-  '—': 'No action'
+  'CAT': 'Cat (2 noises)'
 };
 
 function PlayerTracker({ announcements, players, currentTurn, maxTurns, firstPlayerId }) {
@@ -77,9 +76,9 @@ function PlayerTracker({ announcements, players, currentTurn, maxTurns, firstPla
 
       case 'SILENCE':
         return {
-          text: 'SS',
+          text: '—',
           full: 'Silence in all sectors',
-          type: 'silence'
+          type: 'silence-all'
         };
 
       case 'ATTACK':
@@ -156,7 +155,7 @@ function PlayerTracker({ announcements, players, currentTurn, maxTurns, firstPla
 
       case 'SILENT_MOVE':
         return {
-          text: 'SM',
+          text: 'S',
           full: 'Moved to a safe sector (no card drawn)',
           type: 'silence'
         };

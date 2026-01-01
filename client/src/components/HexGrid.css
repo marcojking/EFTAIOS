@@ -53,6 +53,7 @@
   pointer-events: none;
   font-family: 'Consolas', monospace;
   text-transform: uppercase;
+  font-weight: bold;
 }
 
 /* Position marker */
@@ -61,10 +62,13 @@
 }
 
 @keyframes pulse-ring {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     stroke-width: 2;
   }
+
   50% {
     opacity: 0.5;
     stroke-width: 3;

@@ -149,12 +149,15 @@ function GameBoard({
 
   // Declare noise in current sector (for NOISE_YOUR_SECTOR)
   const handleDeclareNoiseHere = useCallback(() => {
-    if (myPlayer?.position) {
-      onDeclareNoise(myPlayer.position, false);
+    // Prefer the sector from pendingAction if available (server source of truth for the move)
+    const targetSector = gameState?.pendingAction?.sector || myPlayer?.position;
+
+    if (targetSector) {
+      onDeclareNoise(targetSector, false);
       setNoiseDeclarationSector(null);
       onCardDismiss && onCardDismiss();
     }
-  }, [myPlayer, onDeclareNoise, onCardDismiss]);
+  }, [gameState, myPlayer, onDeclareNoise, onCardDismiss]);
 
   // Handle "Choose Sector on Map" - dismiss card and enable map selection
   const handleDeclareNoiseAnywhere = useCallback(() => {

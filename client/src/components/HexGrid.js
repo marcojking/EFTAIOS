@@ -70,6 +70,9 @@ function HexGrid({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
 
+  // Track drag distance to distinguish clicks from pans
+  const dragDistance = useRef(0);
+
   // Calculate grid bounds
   const bounds = useMemo(() => {
     if (!map?.grid?.length) return { minX: 0, maxX: 800, minY: 0, maxY: 600 };
@@ -140,7 +143,11 @@ function HexGrid({
       <g
         key={hex.label}
         className={`hex-group ${isMyPosition ? 'my-position' : ''} ${isSelecting ? 'selecting' : ''}`}
-        onClick={() => onHexClick(hex.label)}
+        onClick={() => {
+          if (dragDistance.current < 5) {
+            onHexClick(hex.label);
+          }
+        }}
       >
         {/* Hex shape */}
         <polygon
@@ -158,22 +165,23 @@ function HexGrid({
           textAnchor="middle"
           className="hex-label"
           fill={colors.stroke}
-          fontSize="8"
+          fontSize="12"
+          fontWeight="bold"
         >
           {hex.label}
         </text>
 
         {/* Sector type indicator */}
         {hex.state === 'airlock' && (
-          <text x={x} y={y + 8} textAnchor="middle" fontSize="10" fill="#ffcc00">
+          <text x={x} y={y + 10} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#ffcc00">
             {getEscapeHatchNumber(hex.label)}
           </text>
         )}
         {hex.state === 'human-start' && (
-          <text x={x} y={y + 8} textAnchor="middle" fontSize="8" fill="#00d9ff">H</text>
+          <text x={x} y={y + 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#00d9ff">H</text>
         )}
         {hex.state === 'alien-start' && (
-          <text x={x} y={y + 8} textAnchor="middle" fontSize="8" fill="#e94560">A</text>
+          <text x={x} y={y + 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#e94560">A</text>
         )}
 
         {/* My position marker */}
@@ -272,9 +280,11 @@ function HexGrid({
 
   // Handle pan
   const handleMouseDown = (e) => {
-    if (e.button === 1 || e.button === 2) { // Middle or right click
+    // Allow left (0), middle (1), or right (2) click to pan
+    if (e.button === 0 || e.button === 1 || e.button === 2) {
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY });
+      dragDistance.current = 0;
     }
   };
 
@@ -282,6 +292,10 @@ function HexGrid({
     if (isPanning) {
       const dx = e.clientX - panStart.x;
       const dy = e.clientY - panStart.y;
+
+      // Accumulate drag distance (manhattan distance is good enough approximation for "is this a click")
+      dragDistance.current += Math.abs(dx) + Math.abs(dy);
+
       setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       setPanStart({ x: e.clientX, y: e.clientY });
     }
