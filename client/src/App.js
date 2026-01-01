@@ -5,11 +5,7 @@ import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
 import './App.css';
 
-// Audio assets
-import bgMusicFile from './assets/sounds/ambient_space.mp3';
-// import alertSoundFile from './assets/sounds/alert.mp3';
-// import moveSoundFile from './assets/sounds/move.mp3';
-// import hatchSoundFile from './assets/sounds/hatch.mp3';
+
 
 function App() {
   const {
@@ -33,30 +29,7 @@ function App() {
 
   const [landingError, setLandingError] = useState(null);
 
-  // Audio state
-  const [audioEnabled, setAudioEnabled] = useState(false);
-  const [bgMusic, setBgMusic] = useState(null);
 
-  // Initialize audio
-  useEffect(() => {
-    const music = new Audio(bgMusicFile);
-    music.loop = true;
-    music.volume = 0.3;
-    setBgMusic(music);
-
-    return () => {
-      music.pause();
-      music.currentTime = 0;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (audioEnabled && bgMusic) {
-      bgMusic.play().catch(e => console.log("Audio play failed:", e));
-    } else if (bgMusic) {
-      bgMusic.pause();
-    }
-  }, [audioEnabled, bgMusic]);
 
   // Connect to server on mount
   useEffect(() => {
@@ -201,11 +174,7 @@ function App() {
         </div>
       )}
 
-      <div className="audio-controls">
-        <button onClick={() => setAudioEnabled(!audioEnabled)}>
-          {audioEnabled ? '🔊' : '🔇'}
-        </button>
-      </div>
+
     </div>
   );
 }
