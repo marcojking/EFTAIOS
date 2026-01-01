@@ -6,7 +6,7 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
     const [name, setName] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [debugLogs, setDebugLogs] = useState([]);
-    const [showDebug, setShowDebug] = useState(true); // Show by default for debugging
+    const [showDebug, setShowDebug] = useState(false); // Hidden by default, toggle with button
 
     // Log helper
     const addLog = (msg) => {
