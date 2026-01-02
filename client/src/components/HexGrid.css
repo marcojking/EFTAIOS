@@ -228,6 +228,115 @@
   /* Yellow/gold */
 }
 
+/* History Visualization */
+.hex.history-pulse-yellow {
+  animation: pulse-yellow-history 2s infinite;
+}
+
+.hex.history-pulse-red {
+  animation: pulse-red-history 2s infinite;
+}
+
+@keyframes pulse-yellow-history {
+  0% {
+    stroke-width: 3px;
+    stroke: #ffcc00;
+    fill: rgba(255, 204, 0, 0.3);
+  }
+
+  50% {
+    stroke-width: 5px;
+    stroke: #ffdd44;
+    fill: rgba(255, 204, 0, 0.5);
+  }
+
+  100% {
+    stroke-width: 3px;
+    stroke: #ffcc00;
+    fill: rgba(255, 204, 0, 0.3);
+  }
+}
+
+@keyframes pulse-red-history {
+  0% {
+    stroke-width: 3px;
+    stroke: #ff3333;
+    fill: rgba(255, 51, 51, 0.3);
+  }
+
+  50% {
+    stroke-width: 5px;
+    stroke: #ff5555;
+    fill: rgba(255, 51, 51, 0.5);
+  }
+
+  100% {
+    stroke-width: 3px;
+    stroke: #ff3333;
+    fill: rgba(255, 51, 51, 0.3);
+  }
+}
+
+.history-turn {
+  font-family: 'Consolas', monospace;
+  filter: drop-shadow(0 0 2px black) drop-shadow(0 0 2px black);
+  pointer-events: none;
+  font-weight: 900;
+  font-size: 14px;
+  fill: #fff;
+  z-index: 20;
+}
+
+/* Movement Highlighting (Blue) */
+.hex.movement-highlight {
+  animation: pulse-movement 1.5s infinite;
+}
+
+@keyframes pulse-movement {
+  0% {
+    stroke: #00aaff;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 4px rgba(0, 170, 255, 0.5));
+  }
+
+  50% {
+    stroke: #44ccff;
+    stroke-width: 4px;
+    filter: drop-shadow(0 0 10px rgba(0, 170, 255, 0.8));
+  }
+
+  100% {
+    stroke: #00aaff;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 4px rgba(0, 170, 255, 0.5));
+  }
+}
+
+/* Attack Highlighting (Red) */
+.hex.attack-highlight {
+  animation: pulse-attack 1s infinite;
+}
+
+@keyframes pulse-attack {
+  0% {
+    stroke: #ff4444;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 4px rgba(255, 68, 68, 0.5));
+  }
+
+  50% {
+    stroke: #ff6666;
+    stroke-width: 5px;
+    filter: drop-shadow(0 0 12px rgba(255, 68, 68, 0.9));
+  }
+
+  100% {
+    stroke: #ff4444;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 4px rgba(255, 68, 68, 0.5));
+  }
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .zoom-controls {

@@ -9,6 +9,190 @@
     font-family: 'Orbitron', sans-serif;
     text-align: center;
     padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Menu Toggle Button */
+.menu-toggle-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: transparent;
+    border: 1px solid var(--text-dim);
+    color: var(--text-dim);
+    font-size: 1.5rem;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 20;
+    transition: all 0.2s;
+}
+
+.menu-toggle-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    background: rgba(0, 247, 255, 0.1);
+}
+
+/* Side Menu */
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: -350px;
+    /* Hidden by default */
+    width: 320px;
+    height: 100vh;
+    background: rgba(10, 15, 20, 0.95);
+    border-right: 1px solid var(--accent-dim);
+    box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.side-menu.open {
+    left: 0;
+}
+
+.menu-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    backdrop-filter: blur(2px);
+}
+
+.menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-header h3 {
+    margin: 0;
+    color: var(--accent-primary);
+    letter-spacing: 2px;
+    font-size: 1.2rem;
+}
+
+.close-menu-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 5px;
+}
+
+.close-menu-btn:hover {
+    color: #fff;
+}
+
+.menu-content {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.menu-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 20px 0;
+}
+
+/* Status Indicator in Menu */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+    box-shadow: 0 0 10px currentColor;
+}
+
+/* Version Info in Menu */
+.version-info {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.debug-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    background: rgba(255, 50, 50, 0.2);
+    color: #ff5555;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 5px;
+    border: 1px solid rgba(255, 50, 50, 0.3);
+}
+
+/* Debug Section in Menu */
+.debug-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.toggle-debug-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--text-dim);
+    color: var(--text-secondary);
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.toggle-debug-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border-color: var(--text-secondary);
+}
+
+.debug-console {
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    color: #0f0;
+    max-height: 200px;
+    overflow-y: auto;
+    word-break: break-all;
+}
+
+.log-line {
+    margin-bottom: 4px;
+    border-bottom: 1px solid #111;
+    padding-bottom: 2px;
+}
+
+.empty-log {
+    color: #666;
+    font-style: italic;
 }
 
 .landing-content {
@@ -59,12 +243,37 @@
     margin-top: 0.3em;
 }
 
+/* Subtitle helper if needed, though we replaced it with game-title structure */
 .subtitle {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 2.5rem;
-    text-transform: uppercase;
-    letter-spacing: 3px;
+    display: none;
+}
+
+.mode-icon {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.mode-label {
+    display: block;
+    margin-bottom: 3px;
+}
+
+.mode-desc {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: normal;
+    text-transform: none;
+    opacity: 0.7;
+    letter-spacing: 0;
+}
+
+.divider-text {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin: 5px 0;
+    font-weight: bold;
+    opacity: 0.5;
 }
 
 .menu-options {
@@ -196,12 +405,7 @@
     box-shadow: 0 0 15px rgba(0, 247, 255, 0.5);
 }
 
-.version-tag {
-    margin-top: 30px;
-    color: var(--text-dim);
-    font-size: 0.7rem;
-    opacity: 0.6;
-}
+/* Removed .version-tag as it is now in the menu */
 
 .loading-spinner {
     display: inline-block;

@@ -5,7 +5,7 @@ import PlayerHUD from './PlayerHUD';
 import CardModal from './CardModal';
 import PlayerTracker from './PlayerTracker';
 import LogToast from './LogToast';
-import DragOverlay from './DragOverlay';
+import { getReachableSectors } from '../utils/mapUtils';
 import './GameBoard.css';
 
 function GameBoard({
@@ -35,110 +35,12 @@ function GameBoard({
   const [showLog, setShowLog] = useState(false);  // Game log hidden by default
   const [targetSelectionMode, setTargetSelectionMode] = useState(null); // { type: 'sensor'|'medic', itemId? }
   const [attackPrimed, setAttackPrimed] = useState(false); // Prime attack before moving
+  const [attackPrimedWithPower, setAttackPrimedWithPower] = useState(false); // Track if primed using Soldier's free_attack
   const [playerGuesses, setPlayerGuesses] = useState({}); // Track player team guesses: { [playerId]: 'none' | 'human' | 'alien' }
   const [trackerWidth, setTrackerWidth] = useState(350); // Default width in px
   const [isResizing, setIsResizing] = useState(false);
   const [pulsingSectors, setPulsingSectors] = useState(new Map()); // Map<sector, { type: 'noise'|'attack', kill: boolean, ttl: number }>
   const lastProcessedAnnouncementCount = React.useRef(0);
-
-  // Drag & Drop State
-  const [dragState, setDragState] = useState(null); // { playerId, color, initials, originSector (null if bank) }
-  const [cursorPos, setCursorPos] = useState(null);
-
-  const handleDragStart = useCallback((data) => {
-    // data: { playerId, color, initials, originSector, startPos }
-    setDragState({
-      playerId: data.playerId,
-      color: data.color,
-      initials: data.initials,
-      originSector: data.originSector
-    });
-    setCursorPos(data.startPos);
-  }, []);
-
-  // Global Drag Move & End Handlers
-  const handleGlobalMove = useCallback((e) => {
-    if (dragState) {
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      setCursorPos({ x: clientX, y: clientY });
-    }
-  }, [dragState]);
-
-  const handleGlobalEnd = useCallback((e) => {
-    if (dragState) {
-      // Fix: Check if changedTouches exists properly
-      const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-      const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-
-      // Drop Detection
-      const targetEl = document.elementFromPoint(clientX, clientY);
-      const hexGroup = targetEl?.closest('.hex-group');
-
-      let targetSector = null;
-      if (hexGroup) {
-        targetSector = hexGroup.getAttribute('data-sector');
-      }
-
-      console.log('Drag End:', {
-        dragState,
-        clientX,
-        clientY,
-        targetEl: targetEl?.tagName,
-        hexGroup: !!hexGroup,
-        targetSector
-      });
-
-      if (targetSector) {
-        // Dropped on a valid sector -> Move Ghost Token
-        setGhostTokens(prev => {
-          const newTokens = { ...prev };
-
-          // Remove from previous location if any
-          Object.keys(newTokens).forEach(key => {
-            newTokens[key] = newTokens[key].filter(id => id !== dragState.playerId);
-            if (newTokens[key].length === 0) delete newTokens[key];
-          });
-
-          // Add to new location
-          if (!newTokens[targetSector]) newTokens[targetSector] = [];
-          newTokens[targetSector].push(dragState.playerId);
-
-          return newTokens;
-        });
-      } else {
-        // Dropped in void -> Return to bank
-        setGhostTokens(prev => {
-          const newTokens = { ...prev };
-          Object.keys(newTokens).forEach(key => {
-            newTokens[key] = newTokens[key].filter(id => id !== dragState.playerId);
-            if (newTokens[key].length === 0) delete newTokens[key];
-          });
-          return newTokens;
-        });
-      }
-
-      // Reset
-      setDragState(null);
-      setCursorPos(null);
-    }
-  }, [dragState]);
-
-  // Global Event Listeners for Drag
-  React.useEffect(() => {
-    if (dragState) {
-      window.addEventListener('mousemove', handleGlobalMove);
-      window.addEventListener('mouseup', handleGlobalEnd);
-      window.addEventListener('touchmove', handleGlobalMove, { passive: false });
-      window.addEventListener('touchend', handleGlobalEnd);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMove);
-      window.removeEventListener('mouseup', handleGlobalEnd);
-      window.removeEventListener('touchmove', handleGlobalMove);
-      window.removeEventListener('touchend', handleGlobalEnd);
-    };
-  }, [dragState, handleGlobalMove, handleGlobalEnd]);
 
   // Watch for new announcements to trigger visual effects (pulse)
   React.useEffect(() => {
@@ -268,17 +170,37 @@ function GameBoard({
 
   // Calculate reachable sectors for movement
   const reachableSectors = useMemo(() => {
-    if (!myPlayer || !isMyTurn || !gameState?.map) return [];
+    if (!myPlayer || !isMyTurn || !gameState?.map || !myPlayer.alive || myPlayer.escaped) return [];
 
-    // Simple adjacency calculation for now
-    // This would be more sophisticated with proper pathfinding
-    return [];
+    // Determine max movement distance based on role
+    // Aliens can move 1-2 sectors, humans move 1
+    const maxDistance = myPlayer.role === 'alien' ? 2 : 1;
+
+    return getReachableSectors(gameState.map, myPlayer.position, maxDistance, myPlayer.role);
   }, [myPlayer, isMyTurn, gameState]);
 
   // Handle hex click
   const handleHexClick = useCallback((sector) => {
     // If selecting sector for ghost token placement
     if (selectedGhostPlayer) {
+      // Check if clicking on a valid hex (any hex is valid for placement)
+      const hexExists = gameState.map?.grid?.some(h => h.label === sector);
+
+      if (!hexExists) {
+        // Clicked outside valid hexes - deselect and remove token from map
+        setGhostTokens(prev => {
+          const newTokens = { ...prev };
+          Object.keys(newTokens).forEach(key => {
+            newTokens[key] = newTokens[key].filter(id => id !== selectedGhostPlayer);
+            if (newTokens[key].length === 0) delete newTokens[key];
+          });
+          return newTokens;
+        });
+        setSelectedGhostPlayer(null);
+        return;
+      }
+
+      // Place token on the clicked hex
       setGhostTokens(prev => {
         const newTokens = { ...prev };
 
@@ -324,8 +246,9 @@ function GameBoard({
 
     // If attack is primed, use combined move and attack (no card draw)
     if (attackPrimed && isMyTurn && myPlayer?.alive && !myPlayer?.escaped) {
-      onMoveAndAttack(sector);
+      onMoveAndAttack(sector, attackPrimedWithPower);
       setAttackPrimed(false);
+      setAttackPrimedWithPower(false);
       return;
     }
 
@@ -436,6 +359,10 @@ function GameBoard({
   const handlePowerUse = useCallback((power) => {
     if (power === 'reveal_identity') {
       setTargetSelectionMode({ type: 'medic' });
+    } else if (power === 'free_attack') {
+      // Soldier's Free Attack: prime the attack (same as clicking Prime Attack button)
+      setAttackPrimed(true);
+      setAttackPrimedWithPower(true);
     } else {
       onUsePower(power);
     }
@@ -472,8 +399,50 @@ function GameBoard({
     if (serverPendingSecondNoise) return 'noise-select';
     if (selectedItem) return 'item-target';
     if (attackPrimed) return 'attack-primed';
+    // Show movement highlighting when it's player's turn and they can move
+    if (isMyTurn && myPlayer?.alive && !myPlayer?.escaped && reachableSectors.length > 0) return 'movement';
     return null;
   };
+
+  // Build path history for visualization
+  // Returns Map: sector -> { types: Set(['noise', 'attack']), turns: [number] }
+  const getPathHistory = useCallback((playerId) => {
+    const history = new Map();
+    if (!playerId || !gameState?.announcements) return history;
+
+    // Filter relevant announcements for this player
+    const relevant = gameState.announcements.filter(a =>
+      a.playerId === playerId &&
+      (a.type === 'NOISE' || a.type === 'ATTACK')
+    );
+
+    relevant.forEach(ann => {
+      const sectors = [];
+      if (ann.sector) sectors.push(ann.sector);
+      if (ann.sectors) sectors.push(...ann.sectors);
+
+      sectors.forEach(sector => {
+        if (!history.has(sector)) {
+          history.set(sector, { types: new Set(), turns: [] });
+        }
+        const entry = history.get(sector);
+        entry.types.add(ann.type === 'ATTACK' ? 'attack' : 'noise');
+        if (!entry.turns.includes(ann.turn)) {
+          entry.turns.push(ann.turn);
+        }
+      });
+    });
+
+    return history;
+  }, [gameState?.announcements]);
+
+  const pathHistory = useMemo(() => {
+    if (selectedGhostPlayer) {
+      return getPathHistory(selectedGhostPlayer);
+    }
+    return null;
+  }, [selectedGhostPlayer, getPathHistory]);
+
 
   if (!gameState) {
     return <div className="loading">Loading game...</div>;
@@ -546,9 +515,9 @@ function GameBoard({
               onHexClick={handleHexClick}
               highlightMode={getHighlightMode()}
               pulsingSectors={pulsingSectors}
-              // Drag props
-              dragState={dragState}
-              onDragStart={handleDragStart}
+              pathHistory={pathHistory}
+              reachableSectors={reachableSectors}
+              onGhostTokenClick={handleGhostSelect}
             />
 
             {/* Action Buttons */}
@@ -558,7 +527,15 @@ function GameBoard({
                 {canPrimeAttack && (
                   <button
                     className={`action-btn prime-attack-btn ${attackPrimed ? 'primed' : ''}`}
-                    onClick={() => setAttackPrimed(!attackPrimed)}
+                    onClick={() => {
+                      if (attackPrimed) {
+                        setAttackPrimed(false);
+                        setAttackPrimedWithPower(false);
+                      } else {
+                        setAttackPrimed(true);
+                        // Don't set attackPrimedWithPower here - that's only for using the soldier power button
+                      }
+                    }}
                   >
                     {attackPrimed ? '⚔️ ATTACK PRIMED - Click sector to move & attack' : '⚔️ Prime Attack'}
                   </button>
@@ -709,13 +686,6 @@ function GameBoard({
             </div>
           </div>
         </div>
-      )}
-      {/* Drag Overlay */}
-      {dragState && (
-        <DragOverlay
-          dragItem={dragState}
-          cursorPos={cursorPos}
-        />
       )}
     </div>
   );

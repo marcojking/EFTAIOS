@@ -1,36 +1,57 @@
-import React from 'react';
-import { useTokenDrag } from '../hooks/useTokenDrag';
+import React, { useRef } from 'react';
 import './PlayerTokenBank.css';
 
-function PlayerToken({ player, isCurrent, isPlaced, isSelectedToken, isHost, onGhostSelect, onToggleGuess, getPlayerInfo, dragState, onDragStart }) {
+function PlayerToken({ player, isCurrent, isPlaced, isSelectedToken, isHost, onGhostSelect, onToggleGuess, getPlayerInfo }) {
   const { initials, color, bgColor, status } = getPlayerInfo(player);
+  const holdTimer = useRef(null);
+  const didHold = useRef(false);
 
-  // Custom Hook for Drag & Tap
-  const { handlers } = useTokenDrag({
-    playerId: player.id,
-    holdDuration: 300,
-    onDragStart: (pid, startPos) => {
-      // Trigger global drag start
-      onDragStart({
-        playerId: pid,
-        color: color,
-        initials: initials,
-        originSector: null, // From Bank
-        startPos: startPos
-      });
-    },
-    onTap: (pid) => {
-      // Tap -> Toggle Guess (or Select if host/no guess logic)
-      if (isHost) {
-        onGhostSelect(pid);
-      } else {
-        onToggleGuess(pid);
-      }
+  // Click to select for placement
+  const handleClick = () => {
+    if (didHold.current) {
+      didHold.current = false;
+      return; // Ignore click if we just did a long-press
     }
-  });
+    onGhostSelect(player.id);
+  };
 
-  // If this token is currently being dragged, hide it (opacity 0 OR dim it)
-  const isDraggingMe = dragState?.playerId === player.id;
+  // Right-click or long-press to toggle guess
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    onToggleGuess(player.id);
+  };
+
+  const handleMouseDown = () => {
+    didHold.current = false;
+    holdTimer.current = setTimeout(() => {
+      didHold.current = true;
+      onToggleGuess(player.id);
+    }, 500); // 500ms hold for guess toggle
+  };
+
+  const handleMouseUp = () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+  };
+
+  const handleTouchStart = () => {
+    didHold.current = false;
+    holdTimer.current = setTimeout(() => {
+      didHold.current = true;
+      onToggleGuess(player.id);
+      // Vibrate on mobile if supported
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+  };
 
   return (
     <div className={`player-token-wrapper ${isCurrent ? 'current-turn' : ''} ${status}`}>
@@ -41,11 +62,16 @@ function PlayerToken({ player, isCurrent, isPlaced, isSelectedToken, isHost, onG
           borderColor: color,
           backgroundColor: bgColor,
           color: color,
-          opacity: isDraggingMe ? 0.2 : 1, // Dim when dragging
-          cursor: isPlaced ? 'default' : 'grab'
+          cursor: 'pointer'
         }}
-        {...handlers} // Attach Mouse/Touch handlers
-        title={`${player.name}${isCurrent ? ' (Current Turn)' : ''}${!isHost ? ' | Tap to change guess, Hold to drag' : ''}`}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        title={`${player.name}${isCurrent ? ' (Current Turn)' : ''} | Click to place, Hold/Right-click to change guess`}
       >
         <span className="token-initials">{initials}</span>
         {isCurrent && <span className="turn-indicator-dot" />}
@@ -76,9 +102,7 @@ function PlayerTokenBank({
   onGhostSelect,
   isHost,
   playerGuesses = {},
-  onToggleGuess,
-  dragState,
-  onDragStart
+  onToggleGuess
 }) {
 
   // Get player display info - UPDATED COLOR LOGIC
@@ -132,7 +156,7 @@ function PlayerTokenBank({
     <div className="player-token-bank">
       <div className="token-bank-label">
         <span>Players</span>
-        <span className="placing-hint" style={{ fontSize: '0.65rem', color: '#888', marginTop: '2px' }}>Hold to Drag</span>
+        <span className="placing-hint" style={{ fontSize: '0.65rem', color: '#888', marginTop: '2px' }}>Click to Place</span>
       </div>
 
       <div className="token-list">
@@ -147,8 +171,6 @@ function PlayerTokenBank({
             onGhostSelect={onGhostSelect}
             onToggleGuess={onToggleGuess}
             getPlayerInfo={getPlayerInfo}
-            dragState={dragState}
-            onDragStart={onDragStart}
           />
         ))}
       </div>

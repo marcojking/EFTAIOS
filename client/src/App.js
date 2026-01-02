@@ -167,8 +167,12 @@ function App() {
     send({ type: 'ATTACK', sector });
   }, [send]);
 
-  const handleMoveAndAttack = useCallback((sector) => {
-    send({ type: 'MOVE_AND_ATTACK', sector });
+  const handleMoveAndAttack = useCallback((sector, usePower = false) => {
+    send({ type: 'MOVE_AND_ATTACK', sector, usePower });
+  }, [send]);
+
+  const handleAttackInPlace = useCallback(() => {
+    send({ type: 'ATTACK_IN_PLACE' });
   }, [send]);
 
   const handleUseEscapeHatch = useCallback((cardIndex) => {
@@ -265,6 +269,7 @@ function App() {
             roomCode={playerState.roomCode}
             onMove={handleMovePlayer}
             onMoveAndAttack={handleMoveAndAttack}
+            onAttackInPlace={handleAttackInPlace}
             onDeclareNoise={handleDeclareNoise}
             onDeclareSecondNoise={handleDeclareSecondNoise}
             onUseItem={handleUseItem}

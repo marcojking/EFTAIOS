@@ -383,6 +383,21 @@
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Not player's turn - items locked */
+.item-card.not-my-turn {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.item-card.not-my-turn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.item-card.not-my-turn .use-btn {
+  display: none;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .player-hud {

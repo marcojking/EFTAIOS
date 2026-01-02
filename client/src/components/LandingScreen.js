@@ -7,6 +7,7 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
     const [roomCode, setRoomCode] = useState('');
     const [debugLogs, setDebugLogs] = useState([]);
     const [showDebug, setShowDebug] = useState(false); // Hidden by default, toggle with button
+    const [showMenu, setShowMenu] = useState(false); // Side menu state
 
     const [isJoining, setIsJoining] = useState(false);
 
@@ -68,23 +69,83 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
 
     return (
         <div className="landing-screen">
+            {/* Menu Button */}
+            <button
+                className="menu-toggle-btn"
+                onClick={() => setShowMenu(true)}
+                title="Open Menu"
+            >
+                ☰
+            </button>
+
+            {/* Side Menu */}
+            <div className={`side-menu ${showMenu ? 'open' : ''}`}>
+                <div className="menu-header">
+                    <h3>Menu</h3>
+                    <button
+                        className="close-menu-btn"
+                        onClick={() => setShowMenu(false)}
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div className="menu-content">
+                    {/* Connection Status */}
+                    <div className="status-indicator" style={{
+                        borderColor: isConnected ? '#0f0' : '#fa0',
+                        color: isConnected ? '#0f0' : '#fa0',
+                        background: isConnected ? 'rgba(0,255,0,0.1)' : 'rgba(255,165,0,0.1)'
+                    }}>
+                        <div className="status-dot" style={{ background: isConnected ? '#0f0' : '#fa0' }}></div>
+                        {isConnected ? 'Connected to Server' : 'Connecting...'}
+                    </div>
+
+                    <div className="menu-divider"></div>
+
+                    {/* Version Info */}
+                    <div className="version-info">
+                        Cloud Edition v2.1<br />
+                        <span className="debug-tag">DEBUG MODE</span>
+                    </div>
+
+                    <div className="menu-divider"></div>
+
+                    {/* Debug Logs */}
+                    <div className="debug-section">
+                        <button
+                            className="toggle-debug-btn"
+                            onClick={() => setShowDebug(!showDebug)}
+                        >
+                            {showDebug ? 'Hide' : 'Show'} Debug Log
+                        </button>
+
+                        {showDebug && (
+                            <div className="debug-console">
+                                {debugLogs.length === 0 ? (
+                                    <div className="empty-log">Waiting for events...</div>
+                                ) : (
+                                    debugLogs.map((log, i) => <div key={i} className="log-line">{log}</div>)
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Backdrop for menu */}
+            {showMenu && <div className="menu-backdrop" onClick={() => setShowMenu(false)}></div>}
+
             <div className="landing-content">
-                <h1>EFTAIOS</h1>
-                <div className="subtitle">Escape From The Alien In Outer Space</div>
+                {/* Restored Cool Title */}
+                <div className="game-title">
+                    <span className="title-escape">ESCAPE</span>
+                    <span className="title-from">FROM THE</span>
+                    <span className="title-aliens">ALIENS</span>
+                    <span className="title-space">IN OUTER SPACE</span>
+                </div>
 
                 {error && <div className="error-message">{error}</div>}
-
-                {/* Connection Status - Always visible */}
-                <div style={{
-                    padding: '10px',
-                    marginBottom: '20px',
-                    borderRadius: '4px',
-                    background: isConnected ? 'rgba(0,255,0,0.2)' : 'rgba(255,165,0,0.2)',
-                    border: `1px solid ${isConnected ? '#0f0' : '#fa0'}`,
-                    color: isConnected ? '#0f0' : '#fa0'
-                }}>
-                    {isConnected ? '✅ Connected to Server' : '⏳ Connecting to Server...'}
-                </div>
 
                 {mode === 'menu' && (
                     <div className="menu-options">
@@ -98,22 +159,31 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                                 pointerEvents: 'auto' // Force clickable for debugging
                             }}
                         >
-                            {!isConnected ? '⏳ Waiting for Connection...' : 'Create New Room (Host)'}
+                            <span className="mode-icon">🚀</span>
+                            <span className="mode-label">Create New Room</span>
+                            <span className="mode-desc">Start a new game as Host</span>
                         </button>
-                        <div className="divider">OR</div>
+
+                        <div className="divider-text">OR</div>
+
                         <button
                             className="option-btn join-btn"
                             onClick={() => { addLog('Join mode clicked'); setMode('join'); }}
                             disabled={!isReady}
                             style={{ opacity: !isReady ? 0.5 : 1 }}
                         >
-                            Join Existing Room
+                            <span className="mode-icon">👾</span>
+                            <span className="mode-label">Join Existing Room</span>
                         </button>
                     </div>
                 )}
 
                 {mode === 'join' && (
                     <form className="join-form" onSubmit={handleJoin}>
+                        <div className="form-header" style={{ textAlign: 'center', marginBottom: '8px' }}>
+                            <h2>Join Game</h2>
+                        </div>
+
                         <div className="form-group">
                             <label>Room Code</label>
                             <input
@@ -125,6 +195,7 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                                     setRoomCode(val);
                                 }}
                                 required
+                                autoFocus
                             />
                         </div>
 
@@ -161,47 +232,6 @@ function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, er
                     </form>
                 )}
             </div>
-
-            {/* Debug Panel - Toggle with button */}
-            <div style={{ marginTop: '20px', width: '100%', maxWidth: '500px' }}>
-                <button
-                    onClick={() => setShowDebug(!showDebug)}
-                    style={{
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid #444',
-                        color: '#888',
-                        padding: '5px 10px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        marginBottom: '10px'
-                    }}
-                >
-                    {showDebug ? 'Hide' : 'Show'} Debug Log
-                </button>
-
-                {showDebug && (
-                    <div style={{
-                        background: 'rgba(0,0,0,0.8)',
-                        border: '1px solid #333',
-                        borderRadius: '4px',
-                        padding: '10px',
-                        fontFamily: 'monospace',
-                        fontSize: '11px',
-                        color: '#0f0',
-                        maxHeight: '150px',
-                        overflowY: 'auto',
-                        textAlign: 'left'
-                    }}>
-                        {debugLogs.length === 0 ? (
-                            <div style={{ color: '#666' }}>Waiting for events...</div>
-                        ) : (
-                            debugLogs.map((log, i) => <div key={i}>{log}</div>)
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <div className="version-tag">Cloud Edition v2.1 - Debug Mode</div>
         </div>
     );
 }

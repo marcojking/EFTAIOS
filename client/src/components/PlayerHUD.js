@@ -140,8 +140,8 @@ function PlayerHUD({ player, isHost, gameState, onUseItem, onUsePower, selectedI
               return (
                 <div
                   key={item.id}
-                  className={`item-card ${selectedItem?.id === item.id ? 'selected' : ''} ${!canUse ? 'disabled' : ''}`}
-                  onClick={() => canUse && item.type !== 'CLONE' && onUseItem && onUseItem(item)}
+                  className={`item-card ${selectedItem?.id === item.id ? 'selected' : ''} ${!canUse ? 'disabled' : ''} ${!isMyTurn ? 'not-my-turn' : ''}`}
+                  onClick={() => isMyTurn && canUse && item.type !== 'CLONE' && onUseItem && onUseItem(item)}
                 >
                   <span className="item-icon">{getItemIcon(item.type)}</span>
                   <div className="item-info">

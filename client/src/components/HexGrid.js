@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { useTokenDrag } from '../hooks/useTokenDrag';
 import './HexGrid.css';
 
 // Hex dimensions - FLAT-TOP orientation
@@ -53,40 +52,25 @@ function getSectorColor(state, escapeHatchStatus, label) {
   }
 }
 
-// Sub-component for Draggable Ghost Token on Map
+// Sub-component for Ghost Token on Map (click to select)
 function HexGhostToken({
   playerId,
   initials,
   color,
   x,
   y,
-  sector,
-  onDragStart,
-  onTap,
-  isDragging
+  onClick
 }) {
-  const { handlers } = useTokenDrag({
-    playerId,
-    holdDuration: 300,
-    onDragStart: (pid, startPos) => {
-      onDragStart({
-        playerId: pid,
-        color: color,
-        initials: initials,
-        originSector: sector,
-        startPos: startPos
-      });
-    },
-    onTap: (pid) => onTap(pid) // Optional: Tap on map token could also toggle color?
-  });
-
-  if (isDragging) return null; // Hide if dragging
+  const handleClick = (e) => {
+    e.stopPropagation(); // Prevent hex click from firing
+    onClick(playerId);
+  };
 
   return (
     <g
       className="ghost-token"
-      style={{ cursor: 'grab' }}
-      {...handlers}
+      style={{ cursor: 'pointer' }}
+      onClick={handleClick}
     >
       <circle
         cx={x}
@@ -125,8 +109,9 @@ function HexGrid({
   highlightMode,
   pulsingSectors,
   playerGuesses,
-  dragState,
-  onDragStart
+  pathHistory,
+  reachableSectors = [],
+  onGhostTokenClick
 }) {
   const svgRef = useRef(null);
   const [viewBox, setViewBox] = useState('0 0 800 600');
@@ -216,6 +201,11 @@ function HexGrid({
     const isHighlighted = highlightMode === 'noise-select' || highlightMode === 'ghost-select';
     const isSelecting = selectedGhostPlayer !== null;
 
+    // Movement/Attack highlighting
+    const isReachable = reachableSectors.includes(hex.label);
+    const isMovementHighlight = highlightMode === 'movement' && isReachable;
+    const isAttackHighlight = highlightMode === 'attack-primed' && isReachable;
+
     // Handle both new Map format and old Set format for backward compatibility
     let isPulsing = false;
     let pulseType = 'noise'; // 'noise' (yellow) or 'attack' (red)
@@ -235,6 +225,26 @@ function HexGrid({
     const pulseClass = pulseType === 'attack' ? 'pulse-red' : 'pulse-yellow';
     const pulseColor = pulseType === 'attack' ? '#ff3333' : '#ffcc00';
 
+    // History Visualization (for Ghost Token selection)
+    const historyEntry = pathHistory?.get(hex.label);
+    const hasHistory = !!historyEntry;
+
+    // Determine history color style
+    let historyClass = '';
+
+    if (hasHistory) {
+      if (historyEntry.types.has('attack')) {
+        historyClass = 'history-pulse-red';
+      } else {
+        historyClass = 'history-pulse-yellow';
+      }
+    }
+
+    // Logic: If pathHistory is active (Ghost Selection Mode), hide standard game pulsing
+    // This allows user to focus on history without distractions
+    const isSelectionMode = !!pathHistory;
+    const showStandardPulse = isPulsing && !isSelectionMode;
+
     return (
       <g
         key={hex.label}
@@ -249,10 +259,15 @@ function HexGrid({
         {/* Hex shape */}
         <polygon
           points={getHexPoints(x, y, HEX_SIZE - 1)}
-          fill={colors.fill}
-          stroke={isHighlighted ? '#e94560' : (isPulsing ? pulseColor : colors.stroke)}
-          strokeWidth={isHighlighted || isPulsing ? 3 : 1}
-          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''} ${isPulsing ? pulseClass : ''}`}
+          fill={hasHistory ? undefined : colors.fill}
+          stroke={
+            isMovementHighlight ? '#00aaff' :
+              isAttackHighlight ? '#ff4444' :
+                isHighlighted ? '#00d9ff' :
+                  (showStandardPulse ? pulseColor : colors.stroke)
+          }
+          strokeWidth={isMovementHighlight || isAttackHighlight || isHighlighted || showStandardPulse ? 3 : 1}
+          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''} ${showStandardPulse ? pulseClass : ''} ${historyClass} ${isMovementHighlight ? 'movement-highlight' : ''} ${isAttackHighlight ? 'attack-highlight' : ''}`}
         />
 
         {/* Sector label */}
@@ -296,14 +311,12 @@ function HexGrid({
           />
         )}
 
-        {/* Ghost tokens - using component for Hooks */}
+        {/* Ghost tokens - click to select */}
         {ghostsHere.map((playerId, idx) => {
           const { initials, color } = getPlayerDisplay(playerId);
           const offsetAngle = (idx / Math.max(ghostsHere.length, 1)) * Math.PI * 2;
           const tokenX = x + Math.cos(offsetAngle) * (HEX_SIZE * 0.3) * (ghostsHere.length > 1 ? 1 : 0);
           const tokenY = y + Math.sin(offsetAngle) * (HEX_SIZE * 0.3) * (ghostsHere.length > 1 ? 1 : 0);
-
-          const isDragging = dragState?.playerId === playerId;
 
           return (
             <HexGhostToken
@@ -313,10 +326,7 @@ function HexGrid({
               color={color}
               x={tokenX}
               y={tokenY}
-              sector={hex.label}
-              onDragStart={onDragStart}
-              onTap={() => { }} // No tap action on map tokens for now
-              isDragging={isDragging}
+              onClick={onGhostTokenClick}
             />
           );
         })}
@@ -363,6 +373,18 @@ function HexGrid({
             pointerEvents="none"
           >
             💀
+          </text>
+        )}
+
+        {/* History Turn Numbers */}
+        {hasHistory && (
+          <text
+            x={x}
+            y={y + 16}
+            textAnchor="middle"
+            className="history-turn"
+          >
+            {historyEntry.turns.join(',')}
           </text>
         )}
       </g>
@@ -418,15 +440,15 @@ function HexGrid({
     // Check if we hit a ghost token first (prevent pan if dragging token)
     if (e.target.closest('.ghost-token')) return;
 
-    e.preventDefault(); // Prevent browser zoom/scroll
-
     if (e.touches.length === 1) {
-      // Single touch - start panning
+      // Single touch - prepare for potential panning, but don't prevent default yet
+      // This allows tap/click events to fire for hex selection
       setIsPanning(true);
       setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
       dragDistance.current = 0;
     } else if (e.touches.length === 2) {
-      // Two touches - start pinch-to-zoom
+      // Two touches - start pinch-to-zoom, prevent default immediately
+      e.preventDefault();
       setIsPanning(false);
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -439,7 +461,11 @@ function HexGrid({
   };
 
   const handleTouchMove = (e) => {
-    e.preventDefault(); // Prevent browser zoom/scroll
+    // Only prevent default if we're actually moving (not a tap)
+    // This stops the page from scrolling during pan/zoom but allows taps
+    if (e.touches.length >= 1) {
+      e.preventDefault();
+    }
 
     if (e.touches.length === 1 && isPanning) {
       // Single touch - panning
@@ -477,7 +503,7 @@ function HexGrid({
   };
 
   const handleTouchEnd = (e) => {
-    e.preventDefault();
+    // Don't prevent default on touchEnd - allow click events to fire for taps
     if (e.touches.length === 0) {
       // All touches released
       setIsPanning(false);

@@ -344,11 +344,26 @@ function handleMessage(ws, message) {
       const gameState = roomManager.getRoom(roomCode);
 
       if (gameState) {
-        const result = gameState.moveAndAttack(client.id, message.sector);
+        const result = gameState.moveAndAttack(client.id, message.sector, message.usePower || false);
         if (result.success) {
           broadcastGameState(roomCode);
         } else {
           sendTo(ws, { type: 'ERROR', message: result.error || 'Move and attack failed' });
+        }
+      }
+      break;
+    }
+
+    case 'ATTACK_IN_PLACE': {
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+
+      if (gameState) {
+        const result = gameState.attackInPlace(client.id);
+        if (result.success) {
+          broadcastGameState(roomCode);
+        } else {
+          sendTo(ws, { type: 'ERROR', message: result.error || 'Attack in place failed' });
         }
       }
       break;
