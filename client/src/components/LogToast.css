@@ -77,3 +77,9 @@
     background: rgba(0, 40, 50, 0.9);
     box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
 }
+
+.log-toast.info {
+    border-color: #a855f7;
+    background: rgba(30, 20, 50, 0.9);
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+}

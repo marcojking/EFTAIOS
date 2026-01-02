@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import HexGrid from './HexGrid';
-import PlayerTokenBank from './PlayerTokenBank';
 import GameLog from './GameLog';
 import PlayerHUD from './PlayerHUD';
 import CardModal from './CardModal';
@@ -40,7 +39,7 @@ function GameBoard({
   const [trackerWidth, setTrackerWidth] = useState(350); // Default width in px
   const [isResizing, setIsResizing] = useState(false);
   const [pulsingSectors, setPulsingSectors] = useState(new Map()); // Map<sector, { type: 'noise'|'attack', kill: boolean, ttl: number }>
-  const lastProcessedAnnouncementTime = React.useRef(0);
+  const lastProcessedAnnouncementCount = React.useRef(0);
 
   // Drag & Drop State
   const [dragState, setDragState] = useState(null); // { playerId, color, initials, originSector (null if bank) }
@@ -143,21 +142,23 @@ function GameBoard({
 
   // Watch for new announcements to trigger visual effects (pulse)
   React.useEffect(() => {
-    if (!gameState?.announcements || gameState.announcements.length === 0) return;
+    if (!gameState?.announcements) return;
 
-    // Process only new announcements (based on timestamp)
+    const totalAnnouncements = gameState.announcements.length;
+    // Process only new announcements we haven't seen yet
+    const newAnnouncements = gameState.announcements.slice(lastProcessedAnnouncementCount.current);
+
+    if (newAnnouncements.length === 0) return;
+
     // We allow a small grace period for "freshness" (e.g. 10s) to show visuals on refresh if they JUST happened
     const cutoff = Date.now() - 10000;
 
-    // Filter announcements we haven't processed yet OR are very recent and we might have missed
-    // (Simpler: just look at the tail of the log)
-    const recentAnnouncements = gameState.announcements.slice(-3);
+    newAnnouncements.forEach(ann => {
+      // Update our count so we don't process this again
+      lastProcessedAnnouncementCount.current += 1;
 
-    recentAnnouncements.forEach(ann => {
-      // Skip if too old or already processed
-      if (ann.timestamp < cutoff || ann.timestamp <= lastProcessedAnnouncementTime.current) return;
-
-      lastProcessedAnnouncementTime.current = ann.timestamp;
+      // Skip if too old (e.g. on page load, we don't want to replay all history)
+      if (ann.timestamp < cutoff) return;
 
       if (ann.type === 'NOISE' || ann.type === 'NOISE_ECHO' || ann.type === 'CAT') {
         let sectorsToPulse = [];
@@ -187,6 +188,9 @@ function GameBoard({
         }
       }
     });
+
+    // Safety sync
+    lastProcessedAnnouncementCount.current = totalAnnouncements;
   }, [gameState?.announcements]);
 
   // Decrement TTL (Time To Live) for pulsing sectors when turn changes
@@ -463,6 +467,7 @@ function GameBoard({
 
   // Determine highlight mode
   const getHighlightMode = () => {
+    if (selectedGhostPlayer) return 'ghost-select';
     if (noiseDeclarationSector === 'any') return 'noise-select';
     if (serverPendingSecondNoise) return 'noise-select';
     if (selectedItem) return 'item-target';
@@ -476,21 +481,6 @@ function GameBoard({
 
   return (
     <div className={`game-board ${showTracker ? 'with-tracker' : ''} ${isMyTurn ? 'my-turn' : ''}`}>
-      {/* Top: Player Token Bank */}
-      <PlayerTokenBank
-        players={gameState.players}
-        currentPlayerId={gameState.currentPlayerId}
-        selectedGhostPlayer={selectedGhostPlayer}
-        placedGhostPlayerIds={placedGhostPlayerIds}
-        onGhostSelect={handleGhostSelect}
-        onGhostRemove={handleGhostRemove}
-        isHost={isHost}
-        playerGuesses={playerGuesses}
-        onToggleGuess={handleToggleGuess}
-        // Drag props
-        dragState={dragState}
-        onDragStart={handleDragStart}
-      />
 
       {/* Main Content Area */}
       <div className="game-content-wrapper">
@@ -609,6 +599,14 @@ function GameBoard({
                 maxTurns={gameState.maxTurns}
                 firstPlayerId={gameState.firstPlayerId}
                 onClose={() => setShowTracker(false)}
+                // Token bank props merged in
+                currentPlayerId={gameState.currentPlayerId}
+                selectedGhostPlayer={selectedGhostPlayer}
+                placedGhostPlayerIds={placedGhostPlayerIds}
+                onGhostSelect={handleGhostSelect}
+                onToggleGuess={handleToggleGuess}
+                isHost={isHost}
+                playerGuesses={playerGuesses}
               />
             </div>
           </>
@@ -639,6 +637,18 @@ function GameBoard({
               ? `Select SECOND sector for noise (first: ${serverPendingSecondNoise.firstSector})`
               : 'Click any sector to declare noise there'
             }
+          </div>
+        </div>
+      )}
+
+      {/* Ghost Token Placement Overlay */}
+      {selectedGhostPlayer && !(noiseDeclarationSector === 'any' || serverPendingSecondNoise) && (
+        <div className="ghost-select-overlay">
+          <div
+            className="ghost-select-message"
+            onClick={() => setSelectedGhostPlayer(null)}
+          >
+            Click a sector to place token, or click here to cancel
           </div>
         </div>
       )}

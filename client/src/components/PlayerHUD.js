@@ -113,13 +113,7 @@ function PlayerHUD({ player, isHost, gameState, onUseItem, onUsePower, selectedI
         </div>
       )}
 
-      {/* Current Position */}
-      <div className="hud-section">
-        <h4>Current Position</h4>
-        <div className="position-display">
-          {player.position || 'Unknown'}
-        </div>
-      </div>
+
 
       {/* Movement Info */}
       <div className="hud-section">
@@ -175,19 +169,7 @@ function PlayerHUD({ player, isHost, gameState, onUseItem, onUsePower, selectedI
         )}
       </div>
 
-      {/* Game Status */}
-      <div className="hud-section">
-        <h4>Status</h4>
-        {player.alive && !player.escaped && (
-          <div className="status-active">Active</div>
-        )}
-        {!player.alive && (
-          <div className="status-dead">Eliminated</div>
-        )}
-        {player.escaped && (
-          <div className="status-escaped">Escaped!</div>
-        )}
-      </div>
+
     </div>
   );
 }

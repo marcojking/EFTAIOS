@@ -2,6 +2,14 @@ const { createDangerousDeck, createItemDeck, createEscapeHatchDeck, shuffle } = 
 const { CHARACTERS, canCharacterUseItem } = require('./characters');
 const { getAdjacentSectors, isValidMove } = require('./mapUtils');
 
+// Helper: Check if a player has mutated from human to alien
+// Mutated players lose their original human abilities
+function isMutated(player) {
+  // A player is mutated if their role is 'alien' but their character is a human character
+  const isHumanCharacter = CHARACTERS.HUMANS.some(c => c.id === player.character?.id);
+  return player.role === 'alien' && isHumanCharacter;
+}
+
 class GameState {
   constructor(mapData, playerList) {
     this.map = mapData;
@@ -248,10 +256,10 @@ class GameState {
 
         // Announce silence (since no card is drawn, it's effectively a Silent Sector)
         this.addAnnouncement({
-          type: 'SILENT_SECTOR', // Explicit type for tracker 'S'
+          type: 'SILENT_SECTOR',
           playerId: player.id,
           playerName: player.name,
-          message: `${player.name}: Silent Sector.`
+          message: `${player.name} — Silent Sector`
         });
 
         this.endTurn();
@@ -259,7 +267,8 @@ class GameState {
       }
 
       // Captain's "First Safe" power - skip first dangerous card, announce silence (masquerade as Safe Sector)
-      if (player.character?.power?.id === 'first_safe' && player.powerUsage?.firstSafeAvailable) {
+      // Mutated players cannot use their old human powers
+      if (!isMutated(player) && player.character?.power?.id === 'first_safe' && player.powerUsage?.firstSafeAvailable) {
         player.powerUsage.firstSafeAvailable = false;
 
         // Removed POWER_USED announcement to keep it secret
@@ -269,7 +278,7 @@ class GameState {
           type: 'SILENT_MOVE',
           playerId: player.id,
           playerName: player.name,
-          message: `${player.name} moved silently.`
+          message: `${player.name} — Silent Sector`
         });
         this.endTurn();
         return { success: true, powerUsed: 'first_safe' };
@@ -324,12 +333,12 @@ class GameState {
       };
     }
 
-    // Secure sector - announce silent move and end turn
+    // Secure sector - announce silent sector and end turn
     this.addAnnouncement({
       type: 'SILENT_MOVE',
       playerId: player.id,
       playerName: player.name,
-      message: `${player.name} moved silently.`
+      message: `${player.name} — Silent Sector`
     });
     this.endTurn();
     return { success: true };
@@ -352,7 +361,8 @@ class GameState {
     }
 
     // Engineer's power: Draw two cards, choose one
-    if (player.character?.power?.id === 'escape_choice') {
+    // Mutated players cannot use their old human powers (Engineer's escape choice)
+    if (!isMutated(player) && player.character?.power?.id === 'escape_choice') {
       const card1 = this.escapeHatchDeck.pop();
       const card2 = this.escapeHatchDeck.pop();
 
@@ -519,7 +529,8 @@ class GameState {
     // Humans can only attack with Attack item OR Soldier's free attack power
     if (player.role === 'human') {
       const hasAttackItem = player.items.some(item => item.type === 'ATTACK');
-      const hasSoldierPower = player.character?.power?.id === 'free_attack' &&
+      // Mutated players cannot use their old human powers (Soldier's free attack)
+      const hasSoldierPower = !isMutated(player) && player.character?.power?.id === 'free_attack' &&
         player.powerUsage?.usesRemaining > 0;
 
       if (usePower && hasSoldierPower) {
@@ -565,30 +576,17 @@ class GameState {
     const survivors = [];
 
     victims.forEach(victim => {
-      // Brute Alien: Immune to all attacks
+      // Brute Alien: Immune to all attacks - SILENT (appears as miss)
       if (victim.character?.power?.immuneToAttacks) {
-        survivors.push({ victim, reason: 'immune' });
-        this.addAnnouncement({
-          type: 'POWER_USED',
-          playerId: victim.id,
-          playerName: victim.name,
-          power: 'Immune to Attacks',
-          message: `${victim.name} (Brute Alien) is immune to attacks!`
-        });
+        // Do NOT add to survivors - attack appears as miss
         return;
       }
 
-      // Check for Defense item
+      // Check for Defense item - SILENT (appears as miss)
       const defenseItem = victim.items.find(item => item.type === 'DEFENSE');
       if (defenseItem) {
         victim.items = victim.items.filter(item => item.id !== defenseItem.id);
-        survivors.push({ victim, reason: 'defense' });
-        this.addAnnouncement({
-          type: 'DEFENSE_USED',
-          playerId: victim.id,
-          playerName: victim.name,
-          message: `${victim.name} used Defense and survived!`
-        });
+        // Do NOT add to survivors or announce - attack appears as miss
         return;
       }
 
@@ -699,7 +697,8 @@ class GameState {
     // Check if player can attack
     if (player.role === 'human') {
       const hasAttackItem = player.items.some(item => item.type === 'ATTACK');
-      const hasSoldierPower = player.character?.power?.id === 'free_attack' &&
+      // Mutated players cannot use their old human powers (Soldier's free attack)
+      const hasSoldierPower = !isMutated(player) && player.character?.power?.id === 'free_attack' &&
         player.powerUsage?.usesRemaining > 0;
 
       if (!hasAttackItem && !hasSoldierPower) {
@@ -746,7 +745,8 @@ class GameState {
     // Consume attack resource for humans
     if (player.role === 'human') {
       const hasAttackItem = player.items.some(item => item.type === 'ATTACK');
-      const hasSoldierPower = player.character?.power?.id === 'free_attack' &&
+      // Mutated players cannot use their old human powers (Soldier's free attack)
+      const hasSoldierPower = !isMutated(player) && player.character?.power?.id === 'free_attack' &&
         player.powerUsage?.usesRemaining > 0;
 
       if (usePower && hasSoldierPower) {
@@ -782,30 +782,17 @@ class GameState {
     const survivors = [];
 
     victims.forEach(victim => {
-      // Brute Alien: Immune to all attacks
+      // Brute Alien: Immune to all attacks - SILENT (appears as miss)
       if (victim.character?.power?.immuneToAttacks) {
-        survivors.push({ victim, reason: 'immune' });
-        this.addAnnouncement({
-          type: 'POWER_USED',
-          playerId: victim.id,
-          playerName: victim.name,
-          power: 'Immune to Attacks',
-          message: `${victim.name} (Brute Alien) is immune to attacks!`
-        });
+        // Do NOT add to survivors - attack appears as miss
         return;
       }
 
-      // Check for Defense item
+      // Check for Defense item - SILENT (appears as miss)
       const defenseItem = victim.items.find(item => item.type === 'DEFENSE');
       if (defenseItem) {
         victim.items = victim.items.filter(item => item.id !== defenseItem.id);
-        survivors.push({ victim, reason: 'defense' });
-        this.addAnnouncement({
-          type: 'DEFENSE_USED',
-          playerId: victim.id,
-          playerName: victim.name,
-          message: `${victim.name} used Defense and survived!`
-        });
+        // Do NOT add to survivors or announce - attack appears as miss
         return;
       }
 
@@ -943,7 +930,8 @@ class GameState {
     }
 
     // Pilot's Double Noise power: noise at actual sector + chosen sector
-    if (useDoublePower && player.character?.power?.id === 'double_noise') {
+    // Mutated players cannot use their old human powers (Pilot's double noise)
+    if (useDoublePower && !isMutated(player) && player.character?.power?.id === 'double_noise') {
       if (!player.powerUsage?.usesRemaining || player.powerUsage.usesRemaining <= 0) {
         return { success: false, error: 'Double Noise power already used' };
       }
@@ -974,7 +962,7 @@ class GameState {
         type: 'SILENCE',
         playerId: player.id,
         playerName: player.name,
-        message: `${player.name}: Silence in all sectors.`
+        message: `${player.name} — Silence in all sectors`
       });
     } else {
       this.addAnnouncement({
@@ -982,7 +970,7 @@ class GameState {
         playerId: player.id,
         playerName: player.name,
         sector: sector,
-        message: `${player.name}: Noise in sector ${sector}.`
+        message: `${player.name} — Noise in ${sector}`
       });
     }
 
@@ -1012,7 +1000,7 @@ class GameState {
       playerId: player.id,
       playerName: player.name,
       sectors: [firstSector, sector], // Pass both sectors
-      message: `${player.name}: Noise in sectors ${firstSector} and ${sector}.`
+      message: `${player.name} — Noise in ${firstSector} and ${sector}`
     });
 
     // We do NOT add separate NOISE announcements or a CAT announcement anymore
@@ -1237,7 +1225,8 @@ class GameState {
       return { success: false, error: 'Not your turn' };
     }
 
-    if (player.character?.power?.id !== 'free_teleport') {
+    // Mutated players cannot use their old human powers
+    if (player.character?.power?.id !== 'free_teleport' || isMutated(player)) {
       return { success: false, error: 'Only the Co-Pilot has Free Teleport' };
     }
 
@@ -1279,7 +1268,8 @@ class GameState {
       return { success: false, error: 'Not your turn' };
     }
 
-    if (player.character?.power?.id !== 'reveal_identity') {
+    // Mutated players cannot use their old human powers
+    if (player.character?.power?.id !== 'reveal_identity' || isMutated(player)) {
       return { success: false, error: 'Only the Medic can reveal identity' };
     }
 
@@ -1345,7 +1335,8 @@ class GameState {
       return { success: false, error: 'Not your turn' };
     }
 
-    if (player.character?.power?.id !== 'stay_still') {
+    // Mutated players cannot use their old human powers
+    if (player.character?.power?.id !== 'stay_still' || isMutated(player)) {
       return { success: false, error: 'Only the Executive Officer can stay still' };
     }
 
@@ -1359,13 +1350,7 @@ class GameState {
 
     player.powerUsage.usesRemaining--;
 
-    this.addAnnouncement({
-      type: 'POWER_USED',
-      playerId: player.id,
-      playerName: player.name,
-      power: 'Stay Still',
-      message: `${player.name} (Executive Officer) used Stay Still.`
-    });
+    // SILENT power usage - no announcement (normal sector logic follows)
 
     // If on dangerous sector, draw a card as if moving into that sector
     if (isDangerous) {
@@ -1397,12 +1382,12 @@ class GameState {
         targetSector: player.position
       };
     } else {
-      // Safe sector - announce silence and end turn
+      // Safe sector - announce silent sector (S) and end turn
       this.addAnnouncement({
-        type: 'SILENCE',
+        type: 'SILENT_SECTOR',
         playerId: player.id,
         playerName: player.name,
-        message: `${player.name}: Silence in all sectors.`
+        message: `${player.name} — Silent Sector`
       });
 
       this.endTurn();

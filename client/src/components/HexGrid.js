@@ -138,6 +138,10 @@ function HexGrid({
   // Track drag distance to distinguish clicks from pans
   const dragDistance = useRef(0);
 
+  // Touch state for pinch-to-zoom
+  const lastTouchDistance = useRef(null);
+  const lastTouchCenter = useRef(null);
+
   // Calculate grid bounds
   const bounds = useMemo(() => {
     if (!map?.grid?.length) return { minX: 0, maxX: 800, minY: 0, maxY: 600 };
@@ -209,7 +213,7 @@ function HexGrid({
       ? players?.filter(p => p.position === hex.label && p.alive && !p.escaped) || []
       : [];
 
-    const isHighlighted = highlightMode === 'noise-select';
+    const isHighlighted = highlightMode === 'noise-select' || highlightMode === 'ghost-select';
     const isSelecting = selectedGhostPlayer !== null;
 
     // Handle both new Map format and old Set format for backward compatibility
@@ -409,6 +413,85 @@ function HexGrid({
     setIsPanning(false);
   };
 
+  // Touch handlers for mobile pinch-to-zoom and pan
+  const handleTouchStart = (e) => {
+    // Check if we hit a ghost token first (prevent pan if dragging token)
+    if (e.target.closest('.ghost-token')) return;
+
+    e.preventDefault(); // Prevent browser zoom/scroll
+
+    if (e.touches.length === 1) {
+      // Single touch - start panning
+      setIsPanning(true);
+      setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+      dragDistance.current = 0;
+    } else if (e.touches.length === 2) {
+      // Two touches - start pinch-to-zoom
+      setIsPanning(false);
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
+      lastTouchCenter.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+      };
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    e.preventDefault(); // Prevent browser zoom/scroll
+
+    if (e.touches.length === 1 && isPanning) {
+      // Single touch - panning
+      const dx = e.touches[0].clientX - panStart.x;
+      const dy = e.touches[0].clientY - panStart.y;
+
+      dragDistance.current += Math.abs(dx) + Math.abs(dy);
+
+      setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    } else if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+      // Two touches - pinch-to-zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const newDistance = Math.sqrt(dx * dx + dy * dy);
+
+      // Calculate zoom factor
+      const zoomFactor = newDistance / lastTouchDistance.current;
+      setScale(prev => Math.max(0.5, Math.min(3, prev * zoomFactor)));
+
+      // Also allow panning while zooming
+      const newCenter = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+      };
+      if (lastTouchCenter.current) {
+        const panDx = newCenter.x - lastTouchCenter.current.x;
+        const panDy = newCenter.y - lastTouchCenter.current.y;
+        setOffset(prev => ({ x: prev.x + panDx, y: prev.y + panDy }));
+      }
+
+      lastTouchDistance.current = newDistance;
+      lastTouchCenter.current = newCenter;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    e.preventDefault();
+    if (e.touches.length === 0) {
+      // All touches released
+      setIsPanning(false);
+      lastTouchDistance.current = null;
+      lastTouchCenter.current = null;
+    } else if (e.touches.length === 1) {
+      // One finger still touching - switch back to pan mode
+      lastTouchDistance.current = null;
+      lastTouchCenter.current = null;
+      setIsPanning(true);
+      setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    }
+  };
+
   if (!map?.grid) {
     return <div className="hex-grid-loading">Loading map...</div>;
   }
@@ -421,6 +504,10 @@ function HexGrid({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       onContextMenu={(e) => e.preventDefault()}
     >
       <svg

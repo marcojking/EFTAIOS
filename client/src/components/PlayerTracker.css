@@ -138,6 +138,118 @@
 .player-col {
   min-width: 70px;
   max-width: 100px;
+  padding: 8px 4px !important;
+}
+
+/* Header token wrapper - interactive tokens in table header */
+.header-token-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.header-token-wrapper.current-turn {
+  position: relative;
+}
+
+.header-token-wrapper.current-turn::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 10px;
+  background: rgba(0, 217, 255, 0.15);
+  animation: pulse-turn 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-turn {
+
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.header-token-wrapper.dead {
+  opacity: 0.5;
+}
+
+.header-token-wrapper.escaped {
+  opacity: 0.7;
+}
+
+/* The actual interactive token circle */
+.header-token {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+  user-select: none;
+  position: relative;
+}
+
+.header-token:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 10px currentColor;
+}
+
+.header-token:active {
+  transform: scale(0.95);
+}
+
+.header-token.placed {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.header-token .token-initials {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.header-token .turn-indicator-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2ed573;
+  border: 2px solid #000;
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+/* Status icons row */
+.status-icons {
+  display: flex;
+  gap: 2px;
+  font-size: 0.7rem;
+}
+
+.status-icon {
+  font-size: 0.65rem;
 }
 
 .player-header {
@@ -154,12 +266,12 @@
 }
 
 .player-name-small {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: #666;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 80px;
+  max-width: 70px;
 }
 
 .status-badge {

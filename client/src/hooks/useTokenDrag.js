@@ -1,48 +1,47 @@
 import { useRef, useCallback } from 'react';
 
 /**
- * Hook to manage "hold to drag" interaction
+ * Hook to manage token interactions:
+ * - Click/tap: Select token for placement on map
+ * - Right-click or long-press: Toggle guess color
  * @param {object} params
  * @param {string} params.playerId - The ID of the player being interacted with
- * @param {Function} params.onDragStart - Called when hold duration is met (300ms)
- * @param {Function} params.onTap - Called if released before hold duration (click/tap)
- * @param {number} params.holdDuration - ms to hold before drag starts (default 300)
+ * @param {Function} params.onSelect - Called when token is tapped/clicked (for placement)
+ * @param {Function} params.onToggleGuess - Called on right-click or long-press (for color change)
+ * @param {number} params.holdDuration - ms to hold before guess toggle triggers (default 500)
  */
-export function useTokenDrag({ playerId, onDragStart, onTap, holdDuration = 300 }) {
+export function useTokenDrag({ playerId, onSelect, onToggleGuess, holdDuration = 500 }) {
     const timerRef = useRef(null);
     const startPosRef = useRef(null);
-    const isDraggingRef = useRef(false);
+    const longPressTriggeredRef = useRef(false);
 
     // START: Mouse/Touch Down
     const handleStart = useCallback((e) => {
-        // Prevent default to stop scrolling/text selection
-        // e.preventDefault(); // CAREFUL: This might block scrolling if we are strict. 
-        // Usually better to only prevent if we confirm it's a drag, but for hold-to-drag, 
-        // we might need to let the browser decide until timer fires.
+        // Ignore right-click here - handled by context menu
+        if (e.button === 2) return;
 
-        // Get coordinates
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
         startPosRef.current = { x: clientX, y: clientY };
-        isDraggingRef.current = false;
+        longPressTriggeredRef.current = false;
 
-        // Start Timer
+        // Start long-press timer for guess toggle
         timerRef.current = setTimeout(() => {
-            isDraggingRef.current = true;
-            // Trigger drag start callback
-            if (onDragStart) {
-                onDragStart(playerId, { x: clientX, y: clientY });
+            longPressTriggeredRef.current = true;
+            // Trigger guess toggle on long press
+            if (onToggleGuess) {
+                onToggleGuess(playerId);
             }
             // Vibrate if on mobile for feedback
             if (navigator.vibrate) navigator.vibrate(50);
         }, holdDuration);
 
-    }, [playerId, onDragStart, holdDuration]);
+    }, [playerId, onToggleGuess, holdDuration]);
 
     // MOVE: Cancel timer if moved too much before timer fires
     const handleMove = useCallback((e) => {
-        if (!timerRef.current || isDraggingRef.current) return;
+        if (!timerRef.current || longPressTriggeredRef.current) return;
 
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -61,22 +60,29 @@ export function useTokenDrag({ playerId, onDragStart, onTap, holdDuration = 300 
 
     // END: Mouse/Touch Up
     const handleEnd = useCallback((e) => {
-        // If timer is still running, it means we released EARLY -> Tap
+        // If timer is still running, it means we released EARLY -> Select for placement
         if (timerRef.current) {
             clearTimeout(timerRef.current);
             timerRef.current = null;
 
-            if (!isDraggingRef.current && onTap) {
-                // It was a tap
-                // e.preventDefault(); 
-                onTap(playerId);
+            if (!longPressTriggeredRef.current && onSelect) {
+                // It was a tap/click -> Select token for placement
+                onSelect(playerId);
             }
         }
 
         // Reset state
-        isDraggingRef.current = false;
+        longPressTriggeredRef.current = false;
         startPosRef.current = null;
-    }, [playerId, onTap]);
+    }, [playerId, onSelect]);
+
+    // RIGHT-CLICK: Toggle guess color
+    const handleContextMenu = useCallback((e) => {
+        e.preventDefault(); // Prevent browser context menu
+        if (onToggleGuess) {
+            onToggleGuess(playerId);
+        }
+    }, [playerId, onToggleGuess]);
 
     return {
         handlers: {
@@ -86,7 +92,8 @@ export function useTokenDrag({ playerId, onDragStart, onTap, holdDuration = 300 
             onTouchMove: handleMove,
             onMouseUp: handleEnd,
             onTouchEnd: handleEnd,
-            onMouseLeave: handleEnd // Cancel if leaving element while holding
+            onMouseLeave: handleEnd,
+            onContextMenu: handleContextMenu // Right-click handler
         }
     };
 }
