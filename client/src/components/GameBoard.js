@@ -554,6 +554,22 @@ function GameBoard({
         <div className="game-main">
           {/* Left: Player HUD */}
           <div className="game-sidebar left">
+            {/* Timeline Controls (Rendered here for Desktop, hidden on Mobile via CSS) */}
+            <div className="desktop-timeline">
+              {isSpectator && gameState?.turnHistory?.length > 0 && (
+                <TimelineControls
+                  currentTurn={gameState.currentTurn}
+                  maxTurn={gameState.maxTurns}
+                  viewingTurn={viewingTurn}
+                  isGameEnded={isGameEnded}
+                  onPrevTurn={handlePrevTurn}
+                  onNextTurn={handleNextTurn}
+                  onGoToTurn={handleGoToTurn}
+                  onGoLive={handleGoLive}
+                  turnSummary={turnSummary}
+                />
+              )}
+            </div>
             <PlayerHUD
               player={myPlayer}
               isHost={isHost}
@@ -599,20 +615,22 @@ function GameBoard({
               </div>
             </div>
 
-            {/* Timeline Controls for Spectators */}
-            {isSpectator && gameState?.turnHistory?.length > 0 && (
-              <TimelineControls
-                currentTurn={gameState.currentTurn}
-                maxTurn={gameState.maxTurns}
-                viewingTurn={viewingTurn}
-                isGameEnded={isGameEnded}
-                onPrevTurn={handlePrevTurn}
-                onNextTurn={handleNextTurn}
-                onGoToTurn={handleGoToTurn}
-                onGoLive={handleGoLive}
-                turnSummary={turnSummary}
-              />
-            )}
+            {/* Timeline Controls (Rendered here for Mobile, hidden on Desktop via CSS) */}
+            <div className="mobile-timeline">
+              {isSpectator && gameState?.turnHistory?.length > 0 && (
+                <TimelineControls
+                  currentTurn={gameState.currentTurn}
+                  maxTurn={gameState.maxTurns}
+                  viewingTurn={viewingTurn}
+                  isGameEnded={isGameEnded}
+                  onPrevTurn={handlePrevTurn}
+                  onNextTurn={handleNextTurn}
+                  onGoToTurn={handleGoToTurn}
+                  onGoLive={handleGoLive}
+                  turnSummary={turnSummary}
+                />
+              )}
+            </div>
 
             <HexGrid
               map={gameState.map}

@@ -712,3 +712,32 @@
     font-size: 0.85rem;
   }
 }
+
+/* Timeline Controls Responsive Visibility */
+.desktop-timeline {
+  display: block;
+  margin-bottom: 20px;
+}
+
+/* Force vertical layout in sidebar to fit width */
+.desktop-timeline .timeline-controls {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.mobile-timeline {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-timeline {
+    display: none;
+  }
+
+  .mobile-timeline {
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
+}

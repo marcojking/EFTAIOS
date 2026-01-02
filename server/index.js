@@ -322,6 +322,10 @@ function handleMessage(ws, message) {
       const gameState = roomManager.getRoom(roomCode);
 
       if (gameState) {
+        if (gameState.phase === 'ended') {
+          sendTo(ws, { type: 'ERROR', message: 'Game has ended' });
+          break;
+        }
         const result = gameState.movePlayer(client.id, message.destination);
         if (result.success) {
           // If silent move, only tell the player
@@ -353,6 +357,10 @@ function handleMessage(ws, message) {
       const gameState = roomManager.getRoom(roomCode);
 
       if (gameState) {
+        if (gameState.phase === 'ended') {
+          sendTo(ws, { type: 'ERROR', message: 'Game has ended' });
+          break;
+        }
         const result = gameState.moveAndAttack(client.id, message.sector, message.usePower || false);
         if (result.success) {
           broadcastGameState(roomCode);
@@ -368,6 +376,10 @@ function handleMessage(ws, message) {
       const gameState = roomManager.getRoom(roomCode);
 
       if (gameState) {
+        if (gameState.phase === 'ended') {
+          sendTo(ws, { type: 'ERROR', message: 'Game has ended' });
+          break;
+        }
         const result = gameState.attackInPlace(client.id);
         if (result.success) {
           broadcastGameState(roomCode);
@@ -391,6 +403,10 @@ function handleMessage(ws, message) {
       const gameState = roomManager.getRoom(roomCode);
 
       if (gameState) {
+        if (gameState.phase === 'ended') {
+          sendTo(ws, { type: 'ERROR', message: 'Game has ended' });
+          break;
+        }
         // Generic handler for all other actions
         // We map the message type to the method name on GameState
         // e.g. DECLARE_NOISE -> declareNoise

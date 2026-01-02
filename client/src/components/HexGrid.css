@@ -361,11 +361,11 @@
 }
 
 .historical-event-bg.noise {
-  animation: event-pulse-yellow 1.5s infinite;
+  /* No animation */
 }
 
 .historical-event-bg.attack {
-  animation: event-pulse-red 1.5s infinite;
+  /* No animation */
 }
 
 @keyframes event-pulse-yellow {
