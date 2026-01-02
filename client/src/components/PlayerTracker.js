@@ -266,6 +266,13 @@ function PlayerTracker({
   function formatAnnouncement(announcement) {
     switch (announcement.type) {
       case 'NOISE':
+        if (announcement.sectors && announcement.sectors.length > 0) {
+          return {
+            text: `N: ${announcement.sectors.join(', ')}`,
+            full: `Noise in ${announcement.sectors.join(' and ')}`,
+            type: 'noise'
+          };
+        }
         return {
           text: `N: ${announcement.sector}`,
           full: `Noise in ${announcement.sector}`,
