@@ -1484,6 +1484,19 @@ class GameState {
     const escapedHumans = this.players.filter(p => p.role === 'human' && p.escaped);
     const aliveAliens = this.players.filter(p => p.role === 'alien' && p.alive);
 
+    // Check if there are any active players left (not dead, not escaped)
+    const activePlayers = this.players.filter(p => p.alive && !p.escaped);
+
+    // No active players left - game over
+    if (activePlayers.length === 0) {
+      if (escapedHumans.length > 0) {
+        this.endGame('humans_escaped');
+      } else {
+        this.endGame('aliens_win');
+      }
+      return;
+    }
+
     // All humans escaped or dead
     if (aliveHumans.length === 0) {
       if (escapedHumans.length > 0) {
@@ -1491,6 +1504,13 @@ class GameState {
       } else {
         this.endGame('aliens_win');
       }
+      return;
+    }
+
+    // All aliens dead - humans win (rare but possible if humans attack aliens)
+    if (aliveAliens.length === 0) {
+      this.endGame('all_aliens_dead');
+      return;
     }
   }
 
@@ -1520,6 +1540,9 @@ class GameState {
           message = 'All humans eliminated. Aliens Win.';
         }
         break;
+      case 'all_aliens_dead':
+        message = 'All aliens have been eliminated! Humans win!';
+        break;
     }
 
     this.addAnnouncement({
@@ -1532,15 +1555,20 @@ class GameState {
     let header = 'GAME OVER';
     let subMessage = '';
 
-    if (escaped.length > 0) {
+    // Determine popup type based on end reason
+    if (reason === 'humans_escaped' || reason === 'all_aliens_dead') {
       popupType = 'win';
-      header = 'GAME OVER';
-      message = `The following players have escaped and won:`;
-      subMessage = escapedNames;
+      if (escaped.length > 0) {
+        message = `The following players have escaped and won:`;
+        subMessage = escapedNames;
+      } else if (reason === 'all_aliens_dead') {
+        message = 'All aliens have been eliminated!';
+        subMessage = 'Humans win!';
+      }
     } else {
+      // aliens_win or timeout
       popupType = 'loss';
-      header = 'GAME OVER';
-      message = 'No players escaped.';
+      message = reason === 'timeout' ? 'Time ran out!' : 'All humans eliminated!';
       subMessage = 'Aliens have taken over the ship!';
     }
 
