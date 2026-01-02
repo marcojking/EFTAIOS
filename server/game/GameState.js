@@ -47,6 +47,9 @@ class GameState {
 
     // Track active effects for the current turn
     this.activeEffects = {}; // playerId -> { adrenaline: bool, sedatives: bool, etc. }
+
+    // Turn history for spectator timeline lookback
+    this.turnHistory = [];
   }
 
   addPlayer(id, name) {
@@ -1441,6 +1444,39 @@ class GameState {
     this.currentPlayerIndex = nextIndex;
     this.currentPlayerId = this.players[nextIndex].id;
     this.pendingAction = null;
+
+    // Record turn snapshot for timeline lookback
+    this.recordTurnSnapshot();
+  }
+
+  // Record snapshot of game state at end of turn for spectator timeline
+  recordTurnSnapshot() {
+    const snapshot = {
+      turn: this.currentTurn,
+      timestamp: Date.now(),
+      players: this.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        position: p.position,
+        role: p.role,
+        character: p.character ? { id: p.character.id, name: p.character.name } : null,
+        alive: p.alive,
+        escaped: p.escaped,
+        revealed: p.revealed,
+        hasFed: p.hasFed
+      })),
+      escapeHatchStatus: { ...this.escapeHatchStatus },
+      // Get announcements for just this turn
+      turnAnnouncements: this.announcements.filter(a => a.turn === this.currentTurn)
+    };
+
+    // Update existing snapshot for this turn or add new one
+    const existingIndex = this.turnHistory.findIndex(s => s.turn === this.currentTurn);
+    if (existingIndex >= 0) {
+      this.turnHistory[existingIndex] = snapshot;
+    } else {
+      this.turnHistory.push(snapshot);
+    }
   }
 
   checkGameEnd() {

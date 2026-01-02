@@ -53,8 +53,14 @@ function getPlayerView(gameState, playerId) {
   const player = gameState.players.find(p => p.id === playerId);
   if (!player) return null;
 
-  // Check if player is a spectator (dead alien)
-  const isSpectator = player.role === 'alien' && !player.alive;
+  // Check if player is a spectator:
+  // - Game has ended (all players become spectators)
+  // - Dead alien
+  // - Escaped human
+  const isSpectator =
+    gameState.phase === 'ended' ||
+    (player.role === 'alien' && !player.alive) ||
+    (player.role === 'human' && player.escaped);
 
   return {
     phase: gameState.phase,
@@ -64,6 +70,7 @@ function getPlayerView(gameState, playerId) {
     firstPlayerId: gameState.firstPlayerId,
     maxTurns: gameState.maxTurns,
     map: gameState.map,
+    isSpectatorView: isSpectator, // Flag so client knows it's in spectator mode
     myPlayer: {
       ...player,
       powerUsage: player.powerUsage,
@@ -87,7 +94,9 @@ function getPlayerView(gameState, playerId) {
     escapeHatchStatus: gameState.escapeHatchStatus,
     pendingAction: gameState.pendingAction?.playerId === playerId ? gameState.pendingAction : null,
     dangerousDeckRemaining: gameState.dangerousDeck.length,
-    itemDeckRemaining: gameState.itemDeck.length
+    itemDeckRemaining: gameState.itemDeck.length,
+    // Include turn history for spectator timeline lookback
+    turnHistory: isSpectator ? gameState.turnHistory : null
   };
 }
 

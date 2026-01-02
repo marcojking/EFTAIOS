@@ -1,0 +1,217 @@
+.timeline-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(20, 25, 35, 0.95) 0%, rgba(30, 35, 50, 0.95) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(100, 120, 150, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+/* Live Mode Styling */
+.timeline-controls.live {
+    border-color: rgba(0, 200, 100, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 200, 100, 0.15);
+}
+
+/* Historical Mode Styling */
+.timeline-controls.historical {
+    border-color: rgba(255, 180, 0, 0.5);
+    box-shadow: 0 4px 20px rgba(255, 180, 0, 0.2);
+    background: linear-gradient(135deg, rgba(40, 35, 20, 0.95) 0%, rgba(50, 40, 25, 0.95) 100%);
+}
+
+/* Status Indicators */
+.timeline-status {
+    min-width: 150px;
+}
+
+.live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #00ff88;
+    font-weight: bold;
+    font-size: 0.9em;
+    letter-spacing: 1px;
+}
+
+.live-dot {
+    width: 10px;
+    height: 10px;
+    background: #00ff88;
+    border-radius: 50%;
+    animation: pulse-live 1.5s ease-in-out infinite;
+    box-shadow: 0 0 10px #00ff88;
+}
+
+@keyframes pulse-live {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(0.9);
+    }
+}
+
+.historical-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffb400;
+    font-weight: bold;
+    font-size: 0.85em;
+    letter-spacing: 0.5px;
+}
+
+.history-icon {
+    font-size: 1.1em;
+}
+
+/* Navigation */
+.timeline-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(100, 120, 150, 0.3);
+    color: #fff;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: rgba(100, 150, 200, 0.5);
+    transform: scale(1.05);
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.nav-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+/* Turn Selector */
+.turn-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    border: 1px solid rgba(100, 120, 150, 0.3);
+}
+
+.turn-label {
+    color: #8899aa;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.turn-dropdown {
+    background: rgba(50, 60, 80, 0.8);
+    border: 1px solid rgba(100, 120, 150, 0.4);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: bold;
+    padding: 5px 10px;
+    cursor: pointer;
+    min-width: 60px;
+    text-align: center;
+}
+
+.turn-dropdown:focus {
+    outline: none;
+    border-color: rgba(100, 180, 255, 0.6);
+}
+
+.turn-max {
+    color: #667788;
+    font-size: 0.9em;
+}
+
+/* Go Live Button */
+.live-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #00aa55 0%, #008844 100%);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.85em;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 10px rgba(0, 170, 85, 0.3);
+}
+
+.live-btn:hover {
+    background: linear-gradient(135deg, #00cc66 0%, #00aa55 100%);
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(0, 200, 100, 0.4);
+}
+
+.live-pulse {
+    width: 8px;
+    height: 8px;
+    background: #fff;
+    border-radius: 50%;
+    animation: pulse-live 1s ease-in-out infinite;
+}
+
+/* Turn Summary */
+.turn-summary {
+    color: #8899aa;
+    font-size: 0.85em;
+    padding: 5px 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .timeline-controls {
+        flex-direction: column;
+        gap: 12px;
+        padding: 10px 15px;
+    }
+
+    .timeline-status {
+        min-width: auto;
+    }
+
+    .turn-summary {
+        max-width: 100%;
+    }
+}

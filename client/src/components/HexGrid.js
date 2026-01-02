@@ -111,7 +111,9 @@ function HexGrid({
   playerGuesses,
   pathHistory,
   reachableSectors = [],
-  onGhostTokenClick
+  onGhostTokenClick,
+  isHistoricalView = false,
+  historicalAnnouncements = []
 }) {
   const svgRef = useRef(null);
   const [viewBox, setViewBox] = useState('0 0 800 600');
@@ -185,6 +187,40 @@ function HexGrid({
 
     return { initials, color, name: player.name };
   };
+
+  // Compute historical events for each hex (used in timeline view)
+  const historicalHexEvents = useMemo(() => {
+    if (!isHistoricalView || !historicalAnnouncements?.length) return new Map();
+
+    const events = new Map();
+    historicalAnnouncements.forEach(ann => {
+      if (ann.type === 'NOISE' || ann.type === 'NOISE_ECHO' || ann.type === 'CAT') {
+        const sector = ann.sector;
+        if (sector) {
+          const { initials } = getPlayerDisplay(ann.playerId);
+          if (!events.has(sector)) events.set(sector, []);
+          events.get(sector).push({ type: 'noise', playerId: ann.playerId, initials });
+        }
+        // Handle multiple sectors (e.g., double noise)
+        if (ann.sectors) {
+          ann.sectors.forEach(s => {
+            const { initials } = getPlayerDisplay(ann.playerId);
+            if (!events.has(s)) events.set(s, []);
+            events.get(s).push({ type: 'noise', playerId: ann.playerId, initials });
+          });
+        }
+      } else if (ann.type === 'ATTACK') {
+        const sector = ann.sector;
+        if (sector) {
+          const { initials } = getPlayerDisplay(ann.playerId);
+          const hasKill = ann.victims && ann.victims.length > 0;
+          if (!events.has(sector)) events.set(sector, []);
+          events.get(sector).push({ type: 'attack', playerId: ann.playerId, initials, hasKill });
+        }
+      }
+    });
+    return events;
+  }, [isHistoricalView, historicalAnnouncements, players]);
 
   // Render a single hex
   const renderHex = (hex) => {
@@ -386,6 +422,55 @@ function HexGrid({
           >
             {historyEntry.turns.join(',')}
           </text>
+        )}
+
+        {/* Historical Event Indicators (Timeline View) */}
+        {isHistoricalView && historicalHexEvents.has(hex.label) && (
+          <g className="historical-events">
+            {historicalHexEvents.get(hex.label).map((event, idx) => {
+              const eventY = y - 15 - (idx * 18);
+              const bgColor = event.type === 'attack' ? '#ff3333' : '#ffcc00';
+              const textColor = event.type === 'attack' ? '#fff' : '#000';
+
+              return (
+                <g key={`event-${idx}`}>
+                  {/* Event background pill */}
+                  <rect
+                    x={x - 14}
+                    y={eventY - 8}
+                    width={28}
+                    height={16}
+                    rx={8}
+                    fill={bgColor}
+                    className={`historical-event-bg ${event.type}`}
+                  />
+                  {/* Player initials */}
+                  <text
+                    x={x}
+                    y={eventY + 4}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight="bold"
+                    fill={textColor}
+                    pointerEvents="none"
+                  >
+                    {event.initials}
+                  </text>
+                  {/* Kill indicator */}
+                  {event.hasKill && (
+                    <text
+                      x={x + 18}
+                      y={eventY + 4}
+                      fontSize="12"
+                      pointerEvents="none"
+                    >
+                      💀
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </g>
         )}
       </g>
     );

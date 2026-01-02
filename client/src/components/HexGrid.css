@@ -350,3 +350,48 @@
     font-size: 1rem;
   }
 }
+
+/* Historical Event Indicators (Timeline View) */
+.historical-events {
+  pointer-events: none;
+}
+
+.historical-event-bg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.historical-event-bg.noise {
+  animation: event-pulse-yellow 1.5s infinite;
+}
+
+.historical-event-bg.attack {
+  animation: event-pulse-red 1.5s infinite;
+}
+
+@keyframes event-pulse-yellow {
+
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes event-pulse-red {
+
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}

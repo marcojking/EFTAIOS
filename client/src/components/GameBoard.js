@@ -5,6 +5,7 @@ import PlayerHUD from './PlayerHUD';
 import CardModal from './CardModal';
 import PlayerTracker from './PlayerTracker';
 import LogToast from './LogToast';
+import TimelineControls from './TimelineControls';
 import { getReachableSectors } from '../utils/mapUtils';
 import './GameBoard.css';
 
@@ -41,6 +42,9 @@ function GameBoard({
   const [isResizing, setIsResizing] = useState(false);
   const [pulsingSectors, setPulsingSectors] = useState(new Map()); // Map<sector, { type: 'noise'|'attack', kill: boolean, ttl: number }>
   const lastProcessedAnnouncementCount = React.useRef(0);
+
+  // Timeline state for spectator mode
+  const [viewingTurn, setViewingTurn] = useState(null); // null = live view, number = historical turn
 
   // Watch for new announcements to trigger visual effects (pulse)
   React.useEffect(() => {
@@ -392,6 +396,99 @@ function GameBoard({
     return false;
   }, [myPlayer, isMyTurn]);
 
+  // Spectator mode detection
+  const isSpectator = isHost || gameState?.isSpectatorView || gameState?.phase === 'ended';
+  const isGameEnded = gameState?.phase === 'ended';
+
+  // Compute historical state when viewing past turns
+  const historicalState = useMemo(() => {
+    if (!viewingTurn || !gameState?.turnHistory) return null;
+
+    const snapshot = gameState.turnHistory.find(s => s.turn === viewingTurn);
+    if (!snapshot) return null;
+
+    return {
+      players: snapshot.players,
+      escapeHatchStatus: snapshot.escapeHatchStatus,
+      announcements: snapshot.turnAnnouncements || [],
+      turn: snapshot.turn
+    };
+  }, [viewingTurn, gameState?.turnHistory]);
+
+  // Timeline navigation handlers
+  const handlePrevTurn = useCallback(() => {
+    const currentViewTurn = viewingTurn ?? gameState?.currentTurn;
+    if (currentViewTurn > 1) {
+      setViewingTurn(currentViewTurn - 1);
+    }
+  }, [viewingTurn, gameState?.currentTurn]);
+
+  const handleNextTurn = useCallback(() => {
+    const currentViewTurn = viewingTurn ?? gameState?.currentTurn;
+    if (currentViewTurn < gameState?.currentTurn) {
+      setViewingTurn(currentViewTurn + 1);
+    } else {
+      setViewingTurn(null); // Go live
+    }
+  }, [viewingTurn, gameState?.currentTurn]);
+
+  const handleGoToTurn = useCallback((turn) => {
+    if (turn >= gameState?.currentTurn) {
+      setViewingTurn(null); // Go live
+    } else {
+      setViewingTurn(turn);
+    }
+  }, [gameState?.currentTurn]);
+
+  const handleGoLive = useCallback(() => {
+    setViewingTurn(null);
+  }, []);
+
+  // Generate turn summary for timeline controls
+  const turnSummary = useMemo(() => {
+    const targetTurn = viewingTurn ?? gameState?.currentTurn;
+    const announcements = viewingTurn && historicalState?.announcements
+      ? historicalState.announcements
+      : gameState?.announcements?.filter(a => a.turn === targetTurn) || [];
+
+    const noises = announcements.filter(a => a.type === 'NOISE' || a.type === 'NOISE_ECHO' || a.type === 'CAT').length;
+    const attacks = announcements.filter(a => a.type === 'ATTACK').length;
+    const escapes = announcements.filter(a => a.type === 'ESCAPE').length;
+    const mutations = announcements.filter(a => a.type === 'MUTATION').length;
+
+    const parts = [];
+    if (noises > 0) parts.push(`${noises} noise${noises > 1 ? 's' : ''}`);
+    if (attacks > 0) parts.push(`${attacks} attack${attacks > 1 ? 's' : ''}`);
+    if (escapes > 0) parts.push(`${escapes} escape${escapes > 1 ? 's' : ''}`);
+    if (mutations > 0) parts.push(`${mutations} mutation${mutations > 1 ? 's' : ''}`);
+
+    return parts.length > 0 ? parts.join(', ') : 'No events';
+  }, [viewingTurn, historicalState, gameState?.announcements, gameState?.currentTurn]);
+
+  // Determine which players to show based on view mode
+  const displayPlayers = useMemo(() => {
+    if (viewingTurn && historicalState) {
+      return historicalState.players;
+    }
+    return gameState?.players;
+  }, [viewingTurn, historicalState, gameState?.players]);
+
+  // Determine which escape hatch status to show
+  const displayEscapeHatchStatus = useMemo(() => {
+    if (viewingTurn && historicalState) {
+      return historicalState.escapeHatchStatus;
+    }
+    return gameState?.escapeHatchStatus;
+  }, [viewingTurn, historicalState, gameState?.escapeHatchStatus]);
+
+  // Get historical announcements for the viewed turn (for highlighting noise/attacks)
+  const displayTurnAnnouncements = useMemo(() => {
+    if (viewingTurn && historicalState) {
+      return historicalState.announcements;
+    }
+    return [];
+  }, [viewingTurn, historicalState]);
+
   // Determine highlight mode
   const getHighlightMode = () => {
     if (selectedGhostPlayer) return 'ghost-select';
@@ -502,22 +599,39 @@ function GameBoard({
               </div>
             </div>
 
+            {/* Timeline Controls for Spectators */}
+            {isSpectator && gameState?.turnHistory?.length > 0 && (
+              <TimelineControls
+                currentTurn={gameState.currentTurn}
+                maxTurn={gameState.maxTurns}
+                viewingTurn={viewingTurn}
+                isGameEnded={isGameEnded}
+                onPrevTurn={handlePrevTurn}
+                onNextTurn={handleNextTurn}
+                onGoToTurn={handleGoToTurn}
+                onGoLive={handleGoLive}
+                turnSummary={turnSummary}
+              />
+            )}
+
             <HexGrid
               map={gameState.map}
               myPosition={myPlayer?.position}
               ghostTokens={ghostTokens}
-              players={gameState.players}
+              players={displayPlayers}
               isHost={isHost}
               playerGuesses={playerGuesses}
-              showAllPlayers={isHost || myPlayer?.isSpectator || gameState?.phase === 'ended'}
-              escapeHatchStatus={gameState.escapeHatchStatus}
+              showAllPlayers={isSpectator}
+              escapeHatchStatus={displayEscapeHatchStatus}
               selectedGhostPlayer={selectedGhostPlayer}
-              onHexClick={handleHexClick}
-              highlightMode={getHighlightMode()}
-              pulsingSectors={pulsingSectors}
+              onHexClick={viewingTurn ? null : handleHexClick}
+              highlightMode={viewingTurn ? null : getHighlightMode()}
+              pulsingSectors={viewingTurn ? new Map() : pulsingSectors}
               pathHistory={pathHistory}
-              reachableSectors={reachableSectors}
+              reachableSectors={viewingTurn ? [] : reachableSectors}
               onGhostTokenClick={handleGhostSelect}
+              isHistoricalView={!!viewingTurn}
+              historicalAnnouncements={displayTurnAnnouncements}
             />
 
             {/* Action Buttons */}
