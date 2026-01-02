@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { GALILEI_MAP, GALATEA_MAP, FERMI_MAP, MORGENLAND_MAP } from '../data/maps';
+import { GALILEI_MAP, GALATEA_MAP, FERMI_MAP, MORGENLAND_MAP, LEVI_MONTALCINI_MAP } from '../data/maps';
 import './Lobby.css';
 
 function Lobby({ connected, isHost, onStartGame, onKickPlayer, roomCode, gameState }) {
   const [players, setPlayers] = useState([]);
-  const [selectedMap, setSelectedMap] = useState('morgenland'); // Default to Morgenland (Newest)
+  const [selectedMap, setSelectedMap] = useState('levi_montalcini'); // Default to newest map
 
   // Handle lobby updates from gameState
   useEffect(() => {
@@ -23,8 +23,10 @@ function Lobby({ connected, isHost, onStartGame, onKickPlayer, roomCode, gameSta
         return FERMI_MAP;
       case 'morgenland':
         return MORGENLAND_MAP;
+      case 'levi_montalcini':
+        return LEVI_MONTALCINI_MAP;
       default:
-        return MORGENLAND_MAP;
+        return LEVI_MONTALCINI_MAP;
     }
   };
 
@@ -122,7 +124,8 @@ function Lobby({ connected, isHost, onStartGame, onKickPlayer, roomCode, gameSta
                   value={selectedMap}
                   onChange={(e) => setSelectedMap(e.target.value)}
                 >
-                  <option value="morgenland">Morgenland (New)</option>
+                  <option value="levi_montalcini">Levi-Montalcini (New)</option>
+                  <option value="morgenland">Morgenland</option>
                   <option value="fermi">Fermi</option>
                   <option value="galatea">Galatea</option>
                   <option value="galilei">Galilei (Classic)</option>
