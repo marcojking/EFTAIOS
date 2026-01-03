@@ -15,6 +15,25 @@ const SILENT_TYPES = [
 function LogToast({ announcements }) {
     const [toasts, setToasts] = useState([]);
     const processedCountRef = useRef(0);
+    const touchStartY = useRef(null);
+
+    const handleTouchStart = (e) => {
+        touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e) => {
+        if (touchStartY.current === null) return;
+
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffY = touchStartY.current - touchEndY;
+
+        // Swipe up (positive diffY) > 50px
+        if (diffY > 50) {
+            setToasts([]);
+        }
+
+        touchStartY.current = null;
+    };
 
     // Process new announcements
     useEffect(() => {
@@ -67,7 +86,12 @@ function LogToast({ announcements }) {
     return (
         <div className="log-toast-container">
             {toasts.map(toast => (
-                <div key={toast.id} className={`log-toast ${getToastClass(toast.type)}`}>
+                <div
+                    key={toast.id}
+                    className={`log-toast ${getToastClass(toast.type)}`}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                >
                     <span className="toast-icon">{getToastIcon(toast.type, toast)}</span>
                     <span className="toast-message">{toast.formattedMessage}</span>
                 </div>

@@ -19,7 +19,7 @@
 }
 
 .global-popup-content {
-    width: 80%;
+    width: 90%;
     max-width: 600px;
     padding: 40px;
     border-radius: 20px;
@@ -34,8 +34,22 @@
     gap: 20px;
 }
 
+.global-popup-content.game-over {
+    max-width: 90vw;
+    width: 95%;
+    min-height: 80vh;
+    justify-content: center;
+}
+
 .global-popup-overlay.visible .global-popup-content {
     transform: scale(1);
+}
+
+.popup-subheader {
+    font-size: 32px;
+    margin: -10px 0 10px;
+    font-weight: bold;
+    color: #eee;
 }
 
 .popup-icon {

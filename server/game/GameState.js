@@ -1433,6 +1433,9 @@ class GameState {
 
     // Check if we've completed a round
     if (nextIndex <= this.currentPlayerIndex) {
+      // Record turn snapshot for timeline lookback (End of Round)
+      this.recordTurnSnapshot();
+
       this.currentTurn++;
 
       if (this.currentTurn > this.maxTurns) {
@@ -1444,13 +1447,13 @@ class GameState {
     this.currentPlayerIndex = nextIndex;
     this.currentPlayerId = this.players[nextIndex].id;
     this.pendingAction = null;
-
-    // Record turn snapshot for timeline lookback
-    this.recordTurnSnapshot();
   }
 
   // Record snapshot of game state at end of turn for spectator timeline
   recordTurnSnapshot() {
+    // Deduplicate: remove existing snapshot for this turn if present (e.g. overwriting for game end)
+    this.turnHistory = this.turnHistory.filter(h => h.turn !== this.currentTurn);
+
     const snapshot = {
       turn: this.currentTurn,
       timestamp: Date.now(),
@@ -1521,6 +1524,9 @@ class GameState {
     this.players.forEach(p => {
       p.revealed = true;
     });
+
+    // Capture final state
+    this.recordTurnSnapshot();
 
     let message = '';
     const escaped = this.players.filter(p => p.escaped);

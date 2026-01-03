@@ -28,21 +28,21 @@ function getAdjacentSectors(map, sectorLabel) {
   // Directions for odd-q offset coordinates
   const directions = isOddCol
     ? [
-        { dc: -1, dr: 0 },  // top-left
-        { dc: -1, dr: 1 },  // bottom-left
-        { dc: 0, dr: -1 },  // top
-        { dc: 0, dr: 1 },   // bottom
-        { dc: 1, dr: 0 },   // top-right
-        { dc: 1, dr: 1 }    // bottom-right
-      ]
+      { dc: -1, dr: 0 },  // top-left
+      { dc: -1, dr: 1 },  // bottom-left
+      { dc: 0, dr: -1 },  // top
+      { dc: 0, dr: 1 },   // bottom
+      { dc: 1, dr: 0 },   // top-right
+      { dc: 1, dr: 1 }    // bottom-right
+    ]
     : [
-        { dc: -1, dr: -1 }, // top-left
-        { dc: -1, dr: 0 },  // bottom-left
-        { dc: 0, dr: -1 },  // top
-        { dc: 0, dr: 1 },   // bottom
-        { dc: 1, dr: -1 },  // top-right
-        { dc: 1, dr: 0 }    // bottom-right
-      ];
+      { dc: -1, dr: -1 }, // top-left
+      { dc: -1, dr: 0 },  // bottom-left
+      { dc: 0, dr: -1 },  // top
+      { dc: 0, dr: 1 },   // bottom
+      { dc: 1, dr: -1 },  // top-right
+      { dc: 1, dr: 0 }    // bottom-right
+    ];
 
   directions.forEach(({ dc, dr }) => {
     const newCol = col + dc;
@@ -106,20 +106,33 @@ function isValidMove(map, fromSector, toSector, maxDistance, playerRole) {
     }
 
     if (distance < maxDistance) {
-      const adjacent = getAdjacentSectors(map, sector);
-      adjacent.forEach(adj => {
-        if (!visited.has(adj)) {
-          const adjSector = map.grid.find(h => h.label === adj);
-          // Can pass through any non-empty, non-starting sector
-          if (adjSector &&
+      // Check if current sector stops movement (e.g. Airlock for Humans)
+      // Humans can move INTO an airlock, but cannot move THROUGH it to another sector
+      const currentSectorData = map.grid.find(h => h.label === sector);
+      if (currentSectorData && currentSectorData.state === 'airlock' && sector !== fromSector) {
+        // Stop expansion from this node
+      } else {
+        const adjacent = getAdjacentSectors(map, sector);
+        adjacent.forEach(adj => {
+          if (!visited.has(adj)) {
+            const adjSector = map.grid.find(h => h.label === adj);
+            // Can pass through any non-empty, non-starting sector
+            if (adjSector &&
               adjSector.state !== 'empty' &&
               adjSector.state !== 'human-start' &&
               adjSector.state !== 'alien-start') {
-            visited.add(adj);
-            queue.push({ sector: adj, distance: distance + 1 });
+
+              // Aliens cannot enter escape hatches at all
+              if (adjSector.state === 'airlock' && playerRole === 'alien') {
+                return;
+              }
+
+              visited.add(adj);
+              queue.push({ sector: adj, distance: distance + 1 });
+            }
           }
-        }
-      });
+        });
+      }
     }
   }
 
@@ -140,28 +153,40 @@ function getReachableSectors(map, fromSector, maxDistance, playerRole) {
       const sectorData = map.grid.find(h => h.label === sector);
       // Check if this is a valid destination
       if (sectorData &&
-          sectorData.state !== 'empty' &&
-          sectorData.state !== 'human-start' &&
-          sectorData.state !== 'alien-start' &&
-          !(sectorData.state === 'airlock' && playerRole === 'alien')) {
+        sectorData.state !== 'empty' &&
+        sectorData.state !== 'human-start' &&
+        sectorData.state !== 'alien-start' &&
+        !(sectorData.state === 'airlock' && playerRole === 'alien')) {
         reachable.push({ sector, distance });
       }
     }
 
     if (distance < maxDistance) {
-      const adjacent = getAdjacentSectors(map, sector);
-      adjacent.forEach(adj => {
-        if (!visited.has(adj)) {
-          const adjSector = map.grid.find(h => h.label === adj);
-          if (adjSector &&
+      // Check if current sector stops movement (e.g. Airlock for Humans)
+      const currentSectorData = map.grid.find(h => h.label === sector);
+      if (currentSectorData && currentSectorData.state === 'airlock' && sector !== fromSector) {
+        // Stop expansion
+      } else {
+        const adjacent = getAdjacentSectors(map, sector);
+        adjacent.forEach(adj => {
+          if (!visited.has(adj)) {
+            const adjSector = map.grid.find(h => h.label === adj);
+            if (adjSector &&
               adjSector.state !== 'empty' &&
               adjSector.state !== 'human-start' &&
               adjSector.state !== 'alien-start') {
-            visited.add(adj);
-            queue.push({ sector: adj, distance: distance + 1 });
+
+              // Aliens cannot enter escape hatches
+              if (adjSector.state === 'airlock' && playerRole === 'alien') {
+                return;
+              }
+
+              visited.add(adj);
+              queue.push({ sector: adj, distance: distance + 1 });
+            }
           }
-        }
-      });
+        });
+      }
     }
   }
 

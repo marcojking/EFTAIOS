@@ -632,6 +632,14 @@
     max-width: 90%;
   }
 
+  /* Ghost select message */
+  .ghost-select-message {
+    top: 60px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    max-width: 90%;
+  }
+
   /* Hide resize handle on mobile */
   .resize-handle {
     display: none;

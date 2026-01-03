@@ -15,6 +15,8 @@ const GlobalPopup = ({ message, header, subMessage, type, onClose }) => {
         }, 500); // Wait for animation
     };
 
+    const isGameOver = type === 'win' || type === 'loss';
+
     const getPopupStyle = () => {
         switch (type) {
             case 'kill':
@@ -66,16 +68,19 @@ const GlobalPopup = ({ message, header, subMessage, type, onClose }) => {
     return (
         <div className={`global-popup-overlay ${isVisible ? 'visible' : ''}`}>
             <div
-                className={`global-popup-content ${type}`}
+                className={`global-popup-content ${type} ${isGameOver ? 'game-over' : ''}`}
                 style={getPopupStyle()}
             >
                 <div className="popup-icon">{getIcon()}</div>
-                <h1 className="popup-header">{header}</h1>
+                <h1 className="popup-header">
+                    {isGameOver ? "GAME OVER" : header}
+                </h1>
+                {isGameOver && <h2 className="popup-subheader">{header}</h2>}
                 <p className="popup-message">{message}</p>
                 {subMessage && <p className="popup-submessage">{subMessage}</p>}
 
                 <button className="popup-close-btn" onClick={handleClose}>
-                    ACKNOWLEDGE
+                    {isGameOver ? "SEE GAME HISTORY" : "ACKNOWLEDGE"}
                 </button>
             </div>
         </div>

@@ -174,11 +174,25 @@ function GameBoard({
 
   // Calculate reachable sectors for movement
   const reachableSectors = useMemo(() => {
-    if (!myPlayer || !isMyTurn || !gameState?.map || !myPlayer.alive || myPlayer.escaped) return [];
+    if (gameState?.phase === 'ended' || !myPlayer || !isMyTurn || !gameState?.map || !myPlayer.alive || myPlayer.escaped) return [];
 
-    // Determine max movement distance based on role
-    // Aliens can move 1-2 sectors, humans move 1
-    const maxDistance = myPlayer.role === 'alien' ? 2 : 1;
+    // Determine max movement distance based on role, items, and character powers
+    // Logic must match server TextGameState.js movePlayer/moveAndAttack logic
+
+    // Base Speed (Humans = 1, Aliens = 2)
+    // Alien who has fed (killed a human) moves 3
+    let maxDistance = myPlayer.hasFed ? 3 : (myPlayer.moveSpeed || 1);
+
+    // Fast Alien: Move 3 on first turn (overrides base speed)
+    if (myPlayer.character?.power?.firstMoveBonus && !myPlayer.hasMoved) {
+      maxDistance = myPlayer.character.power.firstMoveBonus;
+    }
+
+    // Adrenaline item effect: +1 move
+    const effects = gameState.activeEffects?.[myPlayer.id] || {};
+    if (effects.adrenaline) {
+      maxDistance += 1;
+    }
 
     return getReachableSectors(gameState.map, myPlayer.position, maxDistance, myPlayer.role);
   }, [myPlayer, isMyTurn, gameState]);
