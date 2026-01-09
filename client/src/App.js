@@ -145,6 +145,20 @@ function App() {
     send({ type: 'KICK_PLAYER', playerId });
   }, [send]);
 
+  const handleSetTutorialMode = useCallback((enabled) => {
+    send({ type: 'SET_TUTORIAL_MODE', enabled });
+  }, [send]);
+
+  const handleStartTeachingGame = useCallback((difficulty) => {
+    // Use default map (FERMI) for teaching mode
+    send({
+      type: 'CREATE_TEACHING_GAME',
+      difficulty,
+      playerId: playerState.id,
+      playerName: 'You'
+    });
+  }, [send, playerState.id]);
+
   const handleMovePlayer = useCallback((destination) => {
     send({ type: 'MOVE_PLAYER', destination });
   }, [send]);
@@ -240,6 +254,7 @@ function App() {
         <LandingScreen
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
+          onStartTeachingGame={handleStartTeachingGame}
           isConnecting={isConnecting}
           isConnected={isConnected}
           error={wsError || landingError}
@@ -253,7 +268,8 @@ function App() {
           isHost={playerState.isHost}
           onStartGame={handleStartGame}
           onKickPlayer={handleKickPlayer}
-          currentPlayerId={playerState.id}
+          onSetTutorialMode={handleSetTutorialMode}
+          myPlayerId={playerState.id}
           roomCode={playerState.roomCode}
           connected={isConnected}
         />

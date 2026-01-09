@@ -395,3 +395,135 @@
     transform: scale(1.1);
   }
 }
+
+/* ========== Tutorial Mode Indicators ========== */
+
+/* Recommended hex (green glow) */
+.hex.tutorial-recommended-hex {
+  animation: tutorial-pulse-green 2s infinite;
+}
+
+@keyframes tutorial-pulse-green {
+
+  0%,
+  100% {
+    stroke: #4ade80;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 3px rgba(74, 222, 128, 0.4));
+  }
+
+  50% {
+    stroke: #22c55e;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.6));
+  }
+}
+
+/* Risky hex (amber glow) */
+.hex.tutorial-risky-hex {
+  animation: tutorial-pulse-amber 2s infinite;
+}
+
+@keyframes tutorial-pulse-amber {
+
+  0%,
+  100% {
+    stroke: #f59e0b;
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.4));
+  }
+
+  50% {
+    stroke: #d97706;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+  }
+}
+
+/* Star/Warning indicator icon */
+.tutorial-indicator {
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.tutorial-indicator.selected {
+  font-size: 18px !important;
+  animation: indicator-pop 0.2s ease-out;
+}
+
+@keyframes indicator-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.3);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Tooltip container */
+.tutorial-tooltip-container {
+  overflow: visible;
+  pointer-events: auto;
+}
+
+/* Minimalist tooltip */
+.tutorial-hex-tooltip {
+  background: rgba(20, 20, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #ccc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  text-align: center;
+}
+
+.tooltip-reasons {
+  margin-bottom: 6px;
+}
+
+.tooltip-reason {
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.tooltip-confirm-btn {
+  width: 100%;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  border: none;
+  border-radius: 5px;
+  color: #0a0a15;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tooltip-confirm-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(74, 222, 128, 0.4);
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  .tutorial-hex-tooltip {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  .tooltip-confirm-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .tutorial-indicator {
+    font-size: 12px !important;
+  }
+}

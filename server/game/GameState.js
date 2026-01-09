@@ -70,7 +70,8 @@ class GameState {
       isEliminated: false,
       hasEscaped: false,
       usedItemThisTurn: false,
-      attackPrimed: false
+      attackPrimed: false,
+      tutorialMode: false // Tutorial mode for new players
     };
     this.players.push(player);
     return player;
@@ -171,7 +172,8 @@ class GameState {
         moveSpeed: role === 'human' ? 1 : 2,
         powerUsage: powerUsage, // Track character power usage
         hasMoved: false, // Track if player has moved (for Fast Alien)
-        ghostTokens: {} // Client-side tracking, stored here for persistence
+        ghostTokens: {}, // Client-side tracking, stored here for persistence
+        tutorialMode: player.tutorialMode || false // Preserve tutorial mode setting
       };
     });
   }

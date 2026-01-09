@@ -106,6 +106,7 @@ function PlayerHeaderToken({
       </div>
       <span className="player-name-small" style={{ color: isSelected ? '#ffa502' : color }}>{player.name}</span>
       <div className="status-icons">
+        {player.tutorialMode && <span className="status-icon tutorial" title="Tutorial Mode">🎓</span>}
         {!player.alive && <span className="status-icon dead" title="Killed">☠️</span>}
         {player.escaped && <span className="status-icon escaped" title="Escaped">🚀</span>}
         {isPlaced && status === 'active' && <span className="status-icon placed" title="On Map">📍</span>}

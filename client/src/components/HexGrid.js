@@ -113,7 +113,8 @@ function HexGrid({
   reachableSectors = [],
   onGhostTokenClick,
   isHistoricalView = false,
-  historicalAnnouncements = []
+  historicalAnnouncements = [],
+  tutorialHints = null
 }) {
   const svgRef = useRef(null);
   const [viewBox, setViewBox] = useState('0 0 800 600');
@@ -121,6 +122,7 @@ function HexGrid({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  const [selectedTutorialHex, setSelectedTutorialHex] = useState(null); // For tap-to-confirm on mobile
 
   // Track drag distance to distinguish clicks from pans
   const dragDistance = useRef(0);
@@ -222,6 +224,16 @@ function HexGrid({
     return events;
   }, [isHistoricalView, historicalAnnouncements, players]);
 
+  // Build tutorial hint lookup
+  const tutorialHintMap = useMemo(() => {
+    if (!tutorialHints?.moveHints) return new Map();
+    const map = new Map();
+    tutorialHints.moveHints.forEach(hint => {
+      map.set(hint.sector, hint);
+    });
+    return map;
+  }, [tutorialHints]);
+
   // Render a single hex
   const renderHex = (hex) => {
     const { x, y } = hexToPixel(hex.x, hex.y);
@@ -241,6 +253,12 @@ function HexGrid({
     const isReachable = reachableSectors.includes(hex.label);
     const isMovementHighlight = highlightMode === 'movement' && isReachable;
     const isAttackHighlight = highlightMode === 'attack-primed' && isReachable;
+
+    // Tutorial hint for this hex
+    const tutorialHint = tutorialHintMap.get(hex.label);
+    const isRecommended = tutorialHint?.recommended;
+    const isRisky = tutorialHint?.risky;
+    const isTutorialSelected = selectedTutorialHex === hex.label;
 
     // Handle both new Map format and old Set format for backward compatibility
     let isPulsing = false;
@@ -284,11 +302,24 @@ function HexGrid({
     return (
       <g
         key={hex.label}
-        className={`hex-group ${isMyPosition ? 'my-position' : ''} ${isSelecting ? 'selecting' : ''}`}
+        className={`hex-group ${isMyPosition ? 'my-position' : ''} ${isSelecting ? 'selecting' : ''} ${isRecommended ? 'tutorial-recommended' : ''} ${isRisky ? 'tutorial-risky' : ''}`}
         data-sector={hex.label} // Crucial for Drop Detection
         onClick={() => {
           if (dragDistance.current < 5) {
-            onHexClick(hex.label);
+            // If tutorial mode and this is a highlighted hex, handle tap-to-confirm
+            if (tutorialHint && (isRecommended || isRisky)) {
+              if (isTutorialSelected) {
+                // Second tap - confirm move
+                setSelectedTutorialHex(null);
+                onHexClick(hex.label);
+              } else {
+                // First tap - show tooltip/select
+                setSelectedTutorialHex(hex.label);
+              }
+            } else {
+              setSelectedTutorialHex(null);
+              onHexClick(hex.label);
+            }
           }
         }}
       >
@@ -297,13 +328,15 @@ function HexGrid({
           points={getHexPoints(x, y, HEX_SIZE - 1)}
           fill={hasHistory ? undefined : colors.fill}
           stroke={
-            isMovementHighlight ? '#00aaff' :
-              isAttackHighlight ? '#ff4444' :
-                isHighlighted ? '#00d9ff' :
-                  (showStandardPulse ? pulseColor : colors.stroke)
+            isRecommended ? '#4ade80' :
+              isRisky ? '#f59e0b' :
+                isMovementHighlight ? '#00aaff' :
+                  isAttackHighlight ? '#ff4444' :
+                    isHighlighted ? '#00d9ff' :
+                      (showStandardPulse ? pulseColor : colors.stroke)
           }
-          strokeWidth={isMovementHighlight || isAttackHighlight || isHighlighted || showStandardPulse ? 3 : 1}
-          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''} ${showStandardPulse ? pulseClass : ''} ${historyClass} ${isMovementHighlight ? 'movement-highlight' : ''} ${isAttackHighlight ? 'attack-highlight' : ''}`}
+          strokeWidth={isRecommended || isRisky || isMovementHighlight || isAttackHighlight || isHighlighted || showStandardPulse ? 3 : 1}
+          className={`hex ${hex.state} ${isMyPosition ? 'current' : ''} ${showStandardPulse ? pulseClass : ''} ${historyClass} ${isMovementHighlight ? 'movement-highlight' : ''} ${isAttackHighlight ? 'attack-highlight' : ''} ${isRecommended ? 'tutorial-recommended-hex' : ''} ${isRisky ? 'tutorial-risky-hex' : ''}`}
         />
 
         {/* Sector label */}
@@ -422,6 +455,49 @@ function HexGrid({
           >
             {historyEntry.turns.join(',')}
           </text>
+        )}
+
+        {/* Tutorial Hint Indicators */}
+        {tutorialHint && isReachable && (
+          <>
+            {/* Star/Warning indicator */}
+            <text
+              x={x + HEX_SIZE * 0.5}
+              y={y - HEX_SIZE * 0.3}
+              textAnchor="middle"
+              fontSize="14"
+              className={`tutorial-indicator ${isRecommended ? 'recommended' : 'risky'} ${isTutorialSelected ? 'selected' : ''}`}
+              pointerEvents="none"
+            >
+              {isRecommended ? '⭐' : '⚠️'}
+            </text>
+
+            {/* Tooltip (shown on tap/hover) */}
+            {isTutorialSelected && (
+              <foreignObject
+                x={x - 100}
+                y={y + HEX_SIZE + 5}
+                width={200}
+                height={100}
+                className="tutorial-tooltip-container"
+              >
+                <div className="tutorial-hex-tooltip">
+                  <div className="tooltip-reasons">
+                    {tutorialHint.reasons?.slice(0, 2).map((reason, i) => (
+                      <div key={i} className="tooltip-reason">{reason}</div>
+                    ))}
+                  </div>
+                  <button className="tooltip-confirm-btn" onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTutorialHex(null);
+                    onHexClick(hex.label);
+                  }}>
+                    Confirm Move
+                  </button>
+                </div>
+              </foreignObject>
+            )}
+          </>
         )}
 
         {/* Historical Event Indicators (Timeline View) */}

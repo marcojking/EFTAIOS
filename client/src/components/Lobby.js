@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GALILEI_MAP, GALATEA_MAP, FERMI_MAP, MORGENLAND_MAP, LEVI_MONTALCINI_MAP } from '../data/maps';
 import './Lobby.css';
 
-function Lobby({ connected, isHost, onStartGame, onKickPlayer, roomCode, gameState }) {
+function Lobby({ connected, isHost, onStartGame, onKickPlayer, onSetTutorialMode, roomCode, gameState, myPlayerId }) {
   const [players, setPlayers] = useState([]);
   const [selectedMap, setSelectedMap] = useState('levi_montalcini'); // Default to newest map
 
@@ -73,7 +73,21 @@ function Lobby({ connected, isHost, onStartGame, onKickPlayer, roomCode, gameSta
               {players.map((player, index) => (
                 <div key={player.id} className="player-item">
                   <span className="player-number">{index + 1}</span>
-                  <span className="player-name">{player.name}</span>
+                  <span className="player-name">
+                    {player.name}
+                    {player.tutorialMode && <span className="tutorial-badge">🎓</span>}
+                  </span>
+                  {/* Tutorial mode toggle - only show for own player (non-host) */}
+                  {player.id === myPlayerId && onSetTutorialMode && (
+                    <label className="tutorial-toggle" title="Enable tutorial mode for guided gameplay">
+                      <input
+                        type="checkbox"
+                        checked={player.tutorialMode || false}
+                        onChange={(e) => onSetTutorialMode(e.target.checked)}
+                      />
+                      <span className="tutorial-label">New Player</span>
+                    </label>
+                  )}
                   <span className="player-status ready">Ready</span>
                   {isHost && onKickPlayer && (
                     <button

@@ -414,3 +414,47 @@
   color: #888;
   font-size: 1.1rem;
 }
+
+/* Tutorial Mode Toggle */
+.tutorial-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255, 193, 7, 0.15);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 8px;
+}
+
+.tutorial-toggle:hover {
+  background: rgba(255, 193, 7, 0.25);
+  border-color: rgba(255, 193, 7, 0.5);
+}
+
+.tutorial-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #ffc107;
+  cursor: pointer;
+}
+
+.tutorial-toggle .tutorial-label {
+  font-size: 0.75rem;
+  color: #ffc107;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tutorial-badge {
+  margin-left: 6px;
+  font-size: 0.9rem;
+}
+
+.player-name {
+  display: flex;
+  align-items: center;
+}

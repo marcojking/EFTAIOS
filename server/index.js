@@ -5,6 +5,11 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const RoomManager = require('./game/RoomManager');
 const { DANGEROUS_SECTOR_CARDS, ITEM_CARDS, ESCAPE_HATCH_CARDS } = require('./game/cards');
+const { generateMoveHints, generateTurnTips } = require('./game/tutorialHints');
+const { AIPlayer, createTeachingGame } = require('./game/AIPlayer');
+
+// Store AI instances for teaching games
+const teachingGameAIs = new Map(); // roomCode -> { aiInstances: AIPlayer[], humanPlayerId: string }
 
 const app = express();
 const server = http.createServer(app);
@@ -62,6 +67,17 @@ function getPlayerView(gameState, playerId) {
     (player.role === 'alien' && !player.alive) ||
     (player.role === 'human' && player.escaped);
 
+  // Generate tutorial hints if player is in tutorial mode and it's their turn
+  let tutorialHints = null;
+  if (player.tutorialMode &&
+    gameState.phase === 'playing' &&
+    gameState.players[gameState.currentPlayerIndex]?.id === playerId) {
+    tutorialHints = {
+      moveHints: generateMoveHints(gameState, playerId),
+      tips: generateTurnTips(gameState, playerId)
+    };
+  }
+
   return {
     phase: gameState.phase,
     currentTurn: gameState.currentTurn,
@@ -71,6 +87,7 @@ function getPlayerView(gameState, playerId) {
     maxTurns: gameState.maxTurns,
     map: gameState.map,
     isSpectatorView: isSpectator, // Flag so client knows it's in spectator mode
+    tutorialHints: tutorialHints, // Tutorial hints for new players
     myPlayer: {
       ...player,
       powerUsage: player.powerUsage,
@@ -88,10 +105,12 @@ function getPlayerView(gameState, playerId) {
       alive: p.alive ?? true,
       escaped: p.escaped || false,
       itemCount: p.items ? p.items.length : (p.hand ? p.hand.length : 0),
-      hasFed: p.hasFed || false
+      hasFed: p.hasFed || false,
+      tutorialMode: p.tutorialMode || false // Include tutorial mode status for all players
     })),
     announcements: gameState.announcements,
     escapeHatchStatus: gameState.escapeHatchStatus,
+    activeEffects: gameState.activeEffects || {}, // Include active effects (adrenaline, sedatives) for client-side highlighting
     pendingAction: gameState.pendingAction?.playerId === playerId ? gameState.pendingAction : null,
     dangerousDeckRemaining: gameState.dangerousDeck.length,
     itemDeckRemaining: gameState.itemDeck.length,
@@ -314,6 +333,163 @@ function handleMessage(ws, message) {
 
         broadcastGameState(roomCode);
       }
+      break;
+    }
+
+    case 'SET_TUTORIAL_MODE': {
+      // Player toggles their own tutorial mode
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+
+      if (gameState) {
+        const player = gameState.players.find(p => p.id === client.id);
+        if (player) {
+          player.tutorialMode = message.enabled === true;
+          broadcastGameState(roomCode);
+        }
+      }
+      break;
+    }
+
+    case 'CREATE_TEACHING_GAME': {
+      // Create a solo teaching game with AI opponents
+      const mapData = message.mapData;
+      const difficulty = message.difficulty || 'standard';
+      const aiRole = message.aiRole || 'alien'; // AI plays aliens by default
+
+      // Create room
+      const roomCode = roomManager.createRoom(mapData);
+
+      // Update client state
+      if (message.playerId) {
+        client.id = message.playerId;
+      }
+      client.roomCode = roomCode;
+      client.isHost = true;
+      clients.set(ws, client);
+
+      // Add human player
+      const gameState = roomManager.getRoom(roomCode);
+      gameState.addPlayer(client.id, message.playerName || 'You');
+
+      // Add AI players (3-5 depending on map)
+      const aiCount = 4;
+      const aiInstances = [];
+      for (let i = 0; i < aiCount; i++) {
+        const aiId = `ai_${i}_${Date.now()}`;
+        const aiPlayer = gameState.addPlayer(aiId, `AI Player ${i + 1}`);
+        aiPlayer.isAI = true;
+        aiPlayer.difficulty = difficulty;
+
+        // Create AI instance
+        aiInstances.push(new AIPlayer(aiId, difficulty));
+      }
+
+      // Store AI instances
+      teachingGameAIs.set(roomCode, {
+        aiInstances,
+        humanPlayerId: client.id,
+        difficulty
+      });
+
+      // Mark room as teaching mode
+      gameState.isTeachingMode = true;
+
+      sendTo(ws, {
+        type: 'TEACHING_GAME_CREATED',
+        roomCode,
+        playerId: client.id,
+        aiPlayers: aiCount
+      });
+
+      broadcastGameState(roomCode);
+      break;
+    }
+
+    case 'REQUEST_AI_MOVE': {
+      // Request AI to make a move (called after human's turn in teaching mode)
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+      const teachingData = teachingGameAIs.get(roomCode);
+
+      if (!gameState || !teachingData) {
+        sendTo(ws, { type: 'ERROR', message: 'Not a teaching game' });
+        break;
+      }
+
+      // Find current AI player
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+      if (!currentPlayer?.isAI) {
+        sendTo(ws, { type: 'ERROR', message: 'Not AI turn' });
+        break;
+      }
+
+      // Find AI instance
+      const aiInstance = teachingData.aiInstances.find(ai => ai.playerId === currentPlayer.id);
+      if (!aiInstance) break;
+
+      // AI decides move
+      const decision = aiInstance.decideMove(gameState);
+
+      if (decision.action === 'move' && decision.target) {
+        // Execute AI move
+        const result = gameState.movePlayer(currentPlayer.id, decision.target);
+
+        // Send AI move info to human
+        sendTo(ws, {
+          type: 'AI_MOVE_MADE',
+          aiPlayerId: currentPlayer.id,
+          move: decision,
+          result: result.success ? 'success' : result.message
+        });
+
+        // If AI needs to announce noise, handle it
+        if (result.cardDrawn && result.cardDrawn.type === 'NOISE_ANY') {
+          const noiseSector = aiInstance.decideNoiseAnnouncement(gameState, true);
+          gameState.announceNoise(currentPlayer.id, noiseSector);
+        }
+
+        broadcastGameState(roomCode);
+      }
+      break;
+    }
+
+    case 'AI_FEEDBACK': {
+      // Record feedback on an AI move
+      const roomCode = client.roomCode;
+      const teachingData = teachingGameAIs.get(roomCode);
+
+      if (!teachingData) {
+        sendTo(ws, { type: 'ERROR', message: 'Not a teaching game' });
+        break;
+      }
+
+      const { turnNumber, rating, comment, aiPlayerId } = message;
+      const aiInstance = teachingData.aiInstances.find(ai => ai.playerId === aiPlayerId);
+
+      if (aiInstance) {
+        aiInstance.recordFeedback(turnNumber, rating, comment);
+        sendTo(ws, { type: 'FEEDBACK_RECORDED', turnNumber, rating });
+      }
+      break;
+    }
+
+    case 'EXPORT_AI_LOG': {
+      // Export the full AI strategy log for analysis
+      const roomCode = client.roomCode;
+      const teachingData = teachingGameAIs.get(roomCode);
+
+      if (!teachingData) {
+        sendTo(ws, { type: 'ERROR', message: 'Not a teaching game' });
+        break;
+      }
+
+      const logs = teachingData.aiInstances.map(ai => ai.exportLog());
+      sendTo(ws, {
+        type: 'AI_LOG_EXPORT',
+        logs,
+        timestamp: Date.now()
+      });
       break;
     }
 

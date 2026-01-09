@@ -1,0 +1,315 @@
+/* Tutorial Overlay Styles */
+
+/* --- Minimized Badge --- */
+.tutorial-minimized {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.9) 0%, rgba(255, 152, 0, 0.9) 100%);
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+    z-index: 1000;
+    transition: all 0.2s ease;
+}
+
+.tutorial-minimized:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(255, 193, 7, 0.5);
+}
+
+.tutorial-minimized-icon {
+    font-size: 1.1rem;
+}
+
+.tutorial-minimized-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+.tutorial-minimized-count {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+/* --- First Turn Overlay --- */
+.tutorial-overlay.tutorial-first-turn {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+}
+
+.tutorial-card.tutorial-welcome {
+    background: linear-gradient(145deg, #1f1f3a 0%, #16162b 100%);
+    border: 2px solid rgba(255, 193, 7, 0.4);
+    border-radius: 16px;
+    max-width: 420px;
+    width: 100%;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tutorial-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: rgba(255, 193, 7, 0.15);
+    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.tutorial-icon {
+    font-size: 1.5rem;
+}
+
+.tutorial-header h2 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.3rem;
+    color: #ffc107;
+}
+
+.tutorial-minimize {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #aaa;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tutorial-minimize:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.tutorial-content {
+    padding: 20px;
+}
+
+.tutorial-tip-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.tutorial-tip-message {
+    font-size: 0.95rem;
+    color: #bbb;
+    line-height: 1.6;
+}
+
+.tutorial-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-nav-btn {
+    padding: 6px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: transparent;
+    color: #aaa;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tutorial-nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.tutorial-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.tutorial-nav-indicator {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.tutorial-footer {
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tutorial-hint {
+    font-size: 0.8rem;
+    color: #888;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.tutorial-got-it {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    border: none;
+    border-radius: 8px;
+    color: #1a1a2e;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tutorial-got-it:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 193, 7, 0.3);
+}
+
+/* --- Compact Banner (Turns 2+) --- */
+.tutorial-overlay.tutorial-banner {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 900;
+    width: 90%;
+    max-width: 400px;
+}
+
+.tutorial-card.tutorial-compact {
+    background: linear-gradient(145deg, rgba(31, 31, 58, 0.95) 0%, rgba(22, 22, 43, 0.95) 100%);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+}
+
+.tutorial-header-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.tutorial-icon-small {
+    font-size: 1rem;
+}
+
+.tutorial-tip-title-compact {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ffc107;
+}
+
+.tutorial-close {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #888;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tutorial-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.tutorial-tip-message-compact {
+    font-size: 0.85rem;
+    color: #aaa;
+    line-height: 1.5;
+}
+
+.tutorial-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.tutorial-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tutorial-dot.active {
+    background: #ffc107;
+    transform: scale(1.2);
+}
+
+.tutorial-dot:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* --- Mobile Adjustments --- */
+@media (max-width: 600px) {
+    .tutorial-minimized {
+        bottom: 70px;
+        right: 10px;
+        padding: 6px 10px;
+    }
+
+    .tutorial-card.tutorial-welcome {
+        max-width: 100%;
+        margin: 10px;
+    }
+
+    .tutorial-overlay.tutorial-banner {
+        top: 50px;
+        width: 95%;
+    }
+
+    .tutorial-card.tutorial-compact {
+        padding: 10px 12px;
+    }
+
+    .tutorial-tip-message,
+    .tutorial-tip-message-compact {
+        font-size: 0.85rem;
+    }
+}

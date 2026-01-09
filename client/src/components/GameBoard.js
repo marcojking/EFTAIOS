@@ -6,6 +6,8 @@ import CardModal from './CardModal';
 import PlayerTracker from './PlayerTracker';
 import LogToast from './LogToast';
 import TimelineControls from './TimelineControls';
+import TutorialOverlay from './TutorialOverlay';
+import AIFeedback from './AIFeedback';
 import { getReachableSectors } from '../utils/mapUtils';
 import './GameBoard.css';
 
@@ -664,6 +666,7 @@ function GameBoard({
               onGhostTokenClick={handleGhostSelect}
               isHistoricalView={!!viewingTurn}
               historicalAnnouncements={displayTurnAnnouncements}
+              tutorialHints={myPlayer?.tutorialMode && isMyTurn ? gameState.tutorialHints : null}
             />
 
             {/* Action Buttons */}
@@ -738,6 +741,31 @@ function GameBoard({
 
       {/* Floating Log Toasts */}
       <LogToast announcements={gameState.announcements} />
+
+      {/* Tutorial Overlay for new players */}
+      {myPlayer?.tutorialMode && gameState?.tutorialHints && isMyTurn && (
+        <TutorialOverlay
+          tips={gameState.tutorialHints.tips}
+          isFirstTurn={gameState.currentTurn === 1}
+          turnNumber={gameState.currentTurn}
+        />
+      )}
+
+      {/* AI Feedback for teaching mode games */}
+      {gameState?.isTeachingMode && gameState?.lastAIMove && (
+        <AIFeedback
+          currentTurn={gameState.currentTurn}
+          lastAIMove={gameState.lastAIMove}
+          onFeedback={(turn, rating, comment) => {
+            // Send feedback to server - would be wired to send function
+            console.log('AI Feedback:', { turn, rating, comment });
+          }}
+          onExportLog={() => {
+            // Request log export from server - would be wired to send function
+            console.log('Export AI log requested');
+          }}
+        />
+      )}
 
       {/* Card Modal for drawn cards */}
       {drawnCard && (

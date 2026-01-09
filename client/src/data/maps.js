@@ -512,7 +512,34 @@ export const FERMI_MAP = {
   title: 'FERMI',
   description: 'A challenging map with tight chokepoints and a central hive.',
   recommendedPlayers: '4-8',
-  grid: fermiLayout.map(({ col, row, state }) => hex(col, row, state))
+  grid: fermiLayout.map(({ col, row, state }) => hex(col, row, state)),
+  tutorialMeta: {
+    humanTurn1: {
+      recommendedSectors: ['K11', 'M11', 'L11'], // Spread out, multiple secure options
+      avoidSectors: ['L09'], // Alien start - immediate danger!
+      notes: 'FERMI spawns are adjacent - move away from L09 immediately'
+    },
+    alienTurn1: {
+      recommendedSectors: ['L10', 'K08', 'M08'], // Direct pressure on human spawn corridor
+      notes: 'Human spawn at L10 is adjacent - aggressive first move recommended'
+    },
+    characterOverrides: {
+      psychologist: {
+        turn1Notes: 'You START in alien sector L09! Move toward L08/K08 corridor to escape pressure.',
+        recommendedSectors: ['K08', 'L08'], // Safer than staying in spawn
+        priority: 'high'
+      },
+      captain: {
+        turn1Notes: 'Use First Safe power to safely explore dangerous sectors toward escape hatches.',
+        recommendedSectors: ['K13', 'M13'], // Can safely take dangerous route
+      }
+    },
+    escapeZones: {
+      top: { hatches: ['J01', 'N01'], approachNotes: 'Northern route via K02/M02 corridor' },
+      mid: { hatches: ['J05', 'N05'], approachNotes: 'Direct from spawn area' }
+    },
+    keyChokepoints: ['L09', 'L08'] // Central chokepoints aliens should control
+  }
 };
 
 
@@ -598,7 +625,35 @@ export const MORGENLAND_MAP = {
   title: 'MORGENLAND',
   description: 'A winding, snake-like zone with separated clusters.',
   recommendedPlayers: '4-8',
-  grid: morgenlandLayout.map(({ col, row, state }) => hex(col, row, state))
+  grid: morgenlandLayout.map(({ col, row, state }) => hex(col, row, state)),
+  tutorialMeta: {
+    humanTurn1: {
+      recommendedSectors: ['K08', 'M10', 'I10'], // Multiple routes away from alien spawn
+      avoidSectors: ['L06', 'M06'], // Near alien spawn
+      notes: 'MORGENLAND has 2-sector gap between spawns - use it to establish distance'
+    },
+    alienTurn1: {
+      recommendedSectors: ['M06', 'K06', 'L08'], // Pressure human spawn area
+      notes: 'Close the gap toward human spawn L08, control the K06/M06 corridor'
+    },
+    characterOverrides: {
+      psychologist: {
+        turn1Notes: 'You START at L06 (alien sector). Move toward I08/J09 secure corridor immediately!',
+        recommendedSectors: ['I08', 'J09', 'G09'],
+        priority: 'high'
+      },
+      captain: {
+        turn1Notes: 'Use First Safe to safely traverse toward escape hatches via dangerous route.',
+        recommendedSectors: ['F08', 'G08'], // Dangerous but leads to escape G08
+      }
+    },
+    escapeZones: {
+      north: { hatches: ['L04'], approachNotes: 'Northern escape - via K06/L03 corridor' },
+      west: { hatches: ['G08'], approachNotes: 'Western escape - via I08/F08 route' },
+      east: { hatches: ['P08'], approachNotes: 'Eastern escape - via O09/P08 route' }
+    },
+    keyChokepoints: ['K06', 'L08', 'I09'] // Critical control points
+  }
 };
 
 // Levi-Montalcini Map Layout
@@ -838,8 +893,39 @@ export const LEVI_MONTALCINI_MAP = {
   title: 'LEVI-MONTALCINI',
   description: 'The Labyrinth Zone. A complex web of silent and dangerous sectors.',
   recommendedPlayers: '4-8',
-  grid: leviMontalciniLayout.map(({ col, row, state }) => hex(col, row, state))
+  grid: leviMontalciniLayout.map(({ col, row, state }) => hex(col, row, state)),
+  tutorialMeta: {
+    humanTurn1: {
+      recommendedSectors: ['K06', 'K08', 'L04'], // Spread away from alien spawn M07
+      avoidSectors: ['M07', 'M06', 'L09'], // Near alien spawn
+      notes: 'LEVI-MONTALCINI has adjacent spawns - establish distance immediately'
+    },
+    alienTurn1: {
+      recommendedSectors: ['K07', 'L09', 'N06'], // Pressure and block escape routes
+      notes: 'Human spawn K07 is adjacent - apply immediate pressure'
+    },
+    characterOverrides: {
+      psychologist: {
+        turn1Notes: 'You START at M07 (alien sector)! Escape via N06/O07 toward eastern escape zone.',
+        recommendedSectors: ['N06', 'O07', 'P08'],
+        priority: 'high'
+      },
+      captain: {
+        turn1Notes: 'Use First Safe to traverse dangerous sectors toward C02/C12 escapes.',
+        recommendedSectors: ['D03', 'E03'], // Dangerous route to western escapes
+      },
+      pilot: {
+        turn1Notes: 'Double Noise power is powerful here - many corridors to create confusion.',
+        recommendedSectors: ['J06', 'I05']
+      }
+    },
+    escapeZones: {
+      west: { hatches: ['C02', 'C12'], approachNotes: 'Western escapes via D corridor' },
+      east: { hatches: ['T03', 'T10'], approachNotes: 'Eastern escapes via U corridor' }
+    },
+    keyChokepoints: ['K07', 'M07', 'L04', 'M09'] // Central battle zone
+  }
 };
 
-// Export all maps
-export default { GALILEI_MAP, GALATEA_MAP, FERMI_MAP, MORGENLAND_MAP, LEVI_MONTALCINI_MAP };
+// Export working maps only (GALILEI and GALATEA removed - broken layouts)
+export default { FERMI_MAP, MORGENLAND_MAP, LEVI_MONTALCINI_MAP };

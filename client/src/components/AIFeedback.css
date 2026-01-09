@@ -1,0 +1,199 @@
+/* AI Feedback Panel - Minimalist design */
+
+.ai-feedback-panel {
+    position: fixed;
+    bottom: 80px;
+    left: 15px;
+    background: rgba(20, 20, 35, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 12px;
+    width: 280px;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.ai-feedback-minimized {
+    position: fixed;
+    bottom: 80px;
+    left: 15px;
+    background: rgba(20, 20, 35, 0.9);
+    border: 1px solid rgba(100, 200, 255, 0.3);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #88ccff;
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.2s ease;
+}
+
+.ai-feedback-minimized:hover {
+    background: rgba(30, 30, 50, 0.95);
+    border-color: rgba(100, 200, 255, 0.5);
+}
+
+.ai-feedback-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: #ddd;
+}
+
+.ai-icon {
+    font-size: 18px;
+}
+
+.minimize-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.minimize-btn:hover {
+    color: #fff;
+}
+
+/* Reasoning section */
+.ai-reasoning {
+    margin-bottom: 10px;
+}
+
+.toggle-reason-btn {
+    background: none;
+    border: none;
+    color: #88aacc;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 0;
+    text-align: left;
+}
+
+.toggle-reason-btn:hover {
+    color: #aaccff;
+}
+
+.reason-list {
+    margin: 6px 0 0 0;
+    padding-left: 16px;
+    font-size: 11px;
+    color: #aaa;
+    list-style: disc;
+}
+
+.reason-list li {
+    margin-bottom: 3px;
+}
+
+.score-info {
+    color: #88cc88;
+    font-weight: 600;
+}
+
+/* Feedback buttons */
+.feedback-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.feedback-prompt {
+    font-size: 11px;
+    color: #999;
+}
+
+.feedback-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.feedback-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.feedback-btn:hover {
+    transform: scale(1.1);
+}
+
+.feedback-btn.good:hover {
+    background: rgba(74, 222, 128, 0.3);
+    border-color: rgba(74, 222, 128, 0.5);
+}
+
+.feedback-btn.neutral:hover {
+    background: rgba(255, 200, 100, 0.3);
+    border-color: rgba(255, 200, 100, 0.5);
+}
+
+.feedback-btn.bad:hover {
+    background: rgba(255, 100, 100, 0.3);
+    border-color: rgba(255, 100, 100, 0.5);
+}
+
+/* Comment input */
+.comment-section {
+    margin-bottom: 8px;
+}
+
+.comment-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #ddd;
+}
+
+.comment-input::placeholder {
+    color: #666;
+}
+
+.comment-input:focus {
+    outline: none;
+    border-color: rgba(100, 200, 255, 0.4);
+}
+
+/* Export button */
+.export-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #334488 0%, #223366 100%);
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    color: #aaccff;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.export-btn:hover {
+    background: linear-gradient(135deg, #4455aa 0%, #334488 100%);
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+    .ai-feedback-panel {
+        width: calc(100% - 30px);
+        bottom: 70px;
+    }
+
+    .ai-feedback-minimized {
+        bottom: 70px;
+        font-size: 11px;
+    }
+}

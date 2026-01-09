@@ -428,3 +428,64 @@
     margin-bottom: 20px;
     font-size: 0.9rem;
 }
+
+/* Practice Mode Button */
+.practice-btn {
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.3) 0%, rgba(75, 0, 130, 0.3) 100%);
+    color: #b388ff;
+    border: 2px solid #9c27b0;
+}
+
+.practice-btn:hover {
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.5) 0%, rgba(75, 0, 130, 0.5) 100%);
+    box-shadow: 0 0 20px rgba(156, 39, 176, 0.4);
+    transform: translateY(-2px);
+}
+
+/* Practice Form */
+.practice-form {
+    text-align: center;
+}
+
+.practice-form h2 {
+    margin: 0;
+    color: #b388ff;
+}
+
+/* Difficulty Buttons */
+.difficulty-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.difficulty-btn {
+    flex: 1;
+    padding: 12px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.difficulty-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.difficulty-btn.active {
+    background: rgba(156, 39, 176, 0.2);
+    border-color: #9c27b0;
+    color: #b388ff;
+    box-shadow: 0 0 10px rgba(156, 39, 176, 0.3);
+}
+
+.start-practice-btn {
+    background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+    color: #fff;
+}
