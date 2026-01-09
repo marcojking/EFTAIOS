@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { GALILEI_MAP, GALATEA_MAP, FERMI_MAP, MORGENLAND_MAP, LEVI_MONTALCINI_MAP } from '../data/maps';
+import { FERMI_MAP, MORGENLAND_MAP, LEVI_MONTALCINI_MAP } from '../data/maps';
 import './Lobby.css';
 
-function Lobby({ connected, isHost, onStartGame, onKickPlayer, onSetTutorialMode, roomCode, gameState, myPlayerId }) {
+function Lobby({ connected, isHost, isHostPlayer, onStartGame, onKickPlayer, onSetTutorialMode, onHostJoinAsPlayer, roomCode, gameState, myPlayerId }) {
   const [players, setPlayers] = useState([]);
   const [selectedMap, setSelectedMap] = useState('levi_montalcini'); // Default to newest map
 
@@ -15,10 +15,6 @@ function Lobby({ connected, isHost, onStartGame, onKickPlayer, onSetTutorialMode
 
   const getSelectedMapData = () => {
     switch (selectedMap) {
-      case 'galatea':
-        return GALATEA_MAP;
-      case 'galilei':
-        return GALILEI_MAP;
       case 'fermi':
         return FERMI_MAP;
       case 'morgenland':
@@ -63,7 +59,7 @@ function Lobby({ connected, isHost, onStartGame, onKickPlayer, onSetTutorialMode
           <span className="label">Room Code:</span>
           <span className="value room-code">{roomCode || 'Loading...'}</span>
           <span className="label">Role:</span>
-          <span className="value">{isHost ? 'Host / Spectator' : 'Player'}</span>
+          <span className="value">{isHost ? (isHostPlayer ? 'Host + Player' : 'Host / Spectator') : 'Player'}</span>
         </div>
 
         <div className="lobby-content">
@@ -118,6 +114,24 @@ function Lobby({ connected, isHost, onStartGame, onKickPlayer, onSetTutorialMode
                 <p className="join-note">
                   Players should click <strong>"Join Room"</strong> and enter this code.
                 </p>
+
+                {/* Join as Player option for host */}
+                {!isHostPlayer && onHostJoinAsPlayer && (
+                  <div className="host-join-section">
+                    <button
+                      className="host-join-btn"
+                      onClick={() => {
+                        const name = prompt('Enter your player name:');
+                        if (name && name.trim()) {
+                          onHostJoinAsPlayer(name.trim());
+                        }
+                      }}
+                    >
+                      🎮 Join as Player
+                    </button>
+                    <span className="host-join-note">Play instead of spectating</span>
+                  </div>
+                )}
               </div>
             )}
 

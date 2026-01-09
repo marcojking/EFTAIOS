@@ -25,7 +25,8 @@ function App() {
     id: null,
     name: '',
     roomCode: null,
-    isHost: false
+    isHost: false,
+    isHostPlayer: false // Host is also a player (not just spectator)
   });
 
   const [landingError, setLandingError] = useState(null);
@@ -97,6 +98,7 @@ function App() {
         roomCode: lastMessage.roomCode,
         id: lastMessage.playerId,
         isHost: true, // Player controls the teaching game
+        isHostPlayer: true, // But they play, not spectate
         name: 'You'
       }));
       setLandingError(null);
@@ -130,6 +132,14 @@ function App() {
         subMessage: lastMessage.subMessage
       });
     }
+    else if (lastMessage.type === 'HOST_JOINED_AS_PLAYER') {
+      // Host joined as a player
+      setPlayerState(prev => ({
+        ...prev,
+        isHostPlayer: true,
+        name: lastMessage.player?.name || 'Host'
+      }));
+    }
   }, [lastMessage]);
 
   // ACTIONS
@@ -158,6 +168,10 @@ function App() {
 
   const handleSetTutorialMode = useCallback((enabled) => {
     send({ type: 'SET_TUTORIAL_MODE', enabled });
+  }, [send]);
+
+  const handleHostJoinAsPlayer = useCallback((name) => {
+    send({ type: 'HOST_JOIN_AS_PLAYER', name });
   }, [send]);
 
   const handleStartTeachingGame = useCallback((difficulty) => {
@@ -277,9 +291,11 @@ function App() {
         <Lobby
           gameState={gameState}
           isHost={playerState.isHost}
+          isHostPlayer={playerState.isHostPlayer}
           onStartGame={handleStartGame}
           onKickPlayer={handleKickPlayer}
           onSetTutorialMode={handleSetTutorialMode}
+          onHostJoinAsPlayer={handleHostJoinAsPlayer}
           myPlayerId={playerState.id}
           roomCode={playerState.roomCode}
           connected={isConnected}

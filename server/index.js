@@ -137,7 +137,8 @@ function broadcastGameState(roomCode) {
 
   roomClients.forEach(client => {
     let view;
-    if (client.isHost) {
+    // isHostPlayer means host is also playing (not just spectating)
+    if (client.isHost && !client.isHostPlayer) {
       view = getHostView(gameState);
     } else {
       view = getPlayerView(gameState, client.id);
@@ -351,6 +352,36 @@ function handleMessage(ws, message) {
       break;
     }
 
+    case 'HOST_JOIN_AS_PLAYER': {
+      // Host wants to also be a player (not just spectator)
+      const roomCode = client.roomCode;
+      const gameState = roomManager.getRoom(roomCode);
+
+      if (!gameState) {
+        sendTo(ws, { type: 'ERROR', message: 'Room not found' });
+        break;
+      }
+
+      if (gameState.phase !== 'LOBBY') {
+        sendTo(ws, { type: 'ERROR', message: 'Can only join during lobby phase' });
+        break;
+      }
+
+      // Add host as player
+      const player = gameState.addPlayer(client.id, message.name || 'Host');
+      client.isHostPlayer = true;
+      clients.set(ws, client);
+
+      sendTo(ws, {
+        type: 'HOST_JOINED_AS_PLAYER',
+        playerId: client.id,
+        player: player
+      });
+
+      broadcastGameState(roomCode);
+      break;
+    }
+
     case 'CREATE_TEACHING_GAME': {
       // Create a solo teaching game with AI opponents
       const mapData = message.mapData;
@@ -366,6 +397,7 @@ function handleMessage(ws, message) {
       }
       client.roomCode = roomCode;
       client.isHost = true;
+      client.isHostPlayer = true; // Host is also a player in teaching mode
       clients.set(ws, client);
 
       // Add human player
