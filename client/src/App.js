@@ -90,6 +90,17 @@ function App() {
       }));
       setLandingError(null);
     }
+    else if (lastMessage.type === 'TEACHING_GAME_CREATED') {
+      // Teaching game created - update state to enter the game
+      setPlayerState(prev => ({
+        ...prev,
+        roomCode: lastMessage.roomCode,
+        id: lastMessage.playerId,
+        isHost: true, // Player controls the teaching game
+        name: 'You'
+      }));
+      setLandingError(null);
+    }
     else if (lastMessage.type === 'ERROR') {
       setLandingError(lastMessage.message);
     }
