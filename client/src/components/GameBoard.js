@@ -15,6 +15,7 @@ function GameBoard({
   gameState,
   clientId,
   isHost,
+  isHostPlayer,
   roomCode,
   onMove,
   onAttack,
@@ -413,7 +414,8 @@ function GameBoard({
   }, [myPlayer, isMyTurn]);
 
   // Spectator mode detection
-  const isSpectator = isHost || gameState?.isSpectatorView || gameState?.phase === 'ended';
+  // isHost && !isHostPlayer means pure spectator host (not playing)
+  const isSpectator = (isHost && !isHostPlayer) || gameState?.isSpectatorView || gameState?.phase === 'ended';
   const isGameEnded = gameState?.phase === 'ended';
 
   // Compute historical state when viewing past turns

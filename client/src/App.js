@@ -309,6 +309,7 @@ function App() {
             gameState={gameState}
             clientId={playerState.id}
             isHost={playerState.isHost}
+            isHostPlayer={playerState.isHostPlayer}
             roomCode={playerState.roomCode}
             onMove={handleMovePlayer}
             onMoveAndAttack={handleMoveAndAttack}
