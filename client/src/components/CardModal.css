@@ -69,49 +69,81 @@
 
 .card-content {
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-/* Card Display */
-.card-display {
-  padding: 25px 20px;
-  border-radius: 12px;
-  text-align: center;
+/* Card Flip Container */
+.card-flip-container {
   margin-bottom: 20px;
 }
 
-.card-display.red {
-  background: linear-gradient(135deg, rgba(233, 69, 96, 0.3) 0%, rgba(200, 50, 80, 0.2) 100%);
-  border: 1px solid rgba(233, 69, 96, 0.5);
+.dangerous-sector-card {
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
 }
 
-.card-display.green {
-  background: linear-gradient(135deg, rgba(46, 213, 115, 0.3) 0%, rgba(30, 180, 90, 0.2) 100%);
-  border: 1px solid rgba(46, 213, 115, 0.5);
+/* Content overlaid on card front */
+.card-overlay-content {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
 }
 
-.card-display.white {
-  background: linear-gradient(135deg, rgba(170, 170, 170, 0.2) 0%, rgba(130, 130, 130, 0.1) 100%);
-  border: 1px solid rgba(170, 170, 170, 0.4);
-}
-
+/* Card type badge on the card */
 .card-type-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
+
+.card-type-badge.red {
+  background: rgba(233, 69, 96, 0.9);
+  color: white;
+}
+
+.card-type-badge.green {
+  background: rgba(46, 213, 115, 0.9);
+  color: white;
+}
+
+.card-type-badge.white {
+  background: rgba(170, 170, 170, 0.9);
+  color: #1a1a2e;
+}
+
+/* Item badge on the card */
+.card-item-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 204, 0, 0.95);
+  color: #1a1a2e;
+  padding: 6px 12px;
+  border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.15em;
-  margin-bottom: 10px;
-  opacity: 0.7;
 }
 
-.card-display.red .card-type-badge {
-  color: #e94560;
+.card-item-badge .item-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
-.card-display.green .card-type-badge {
-  color: #2ed573;
-}
-
-.card-display.white .card-type-badge {
-  color: #aaa;
+.card-item-badge .item-text {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .card-title {
@@ -146,6 +178,15 @@
 /* Instructions */
 .card-instructions {
   text-align: center;
+  width: 100%;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.card-instructions.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .card-instructions p {
@@ -215,6 +256,18 @@
   background: linear-gradient(135deg, #a569bd 0%, #9b59b6 100%);
   transform: translateY(-2px);
   box-shadow: 0 5px 20px rgba(155, 89, 182, 0.4);
+}
+
+.action-btn.cat-btn {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: white;
+  border: none;
+}
+
+.action-btn.cat-btn:hover {
+  background: linear-gradient(135deg, #f5ab35 0%, #f39c12 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(243, 156, 18, 0.4);
 }
 
 /* Responsive */

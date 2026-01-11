@@ -11,12 +11,18 @@ const ABBREVIATIONS = {
   'E': 'Escaped via',
   'EF': 'Escape failed',
   'D': 'Died',
-  'SP': 'Spotlight on',
-  'SN': 'Sensor revealed',
-  'DEF': 'Defense used',
-  'CLN': 'Clone used',
-  'MUT': 'Mutated to Alien',
-  'CAT': 'Cat (2 noises)'
+  '🔦': 'Spotlight used',
+  '📡': 'Sensor revealed',
+  '🛡️': 'Defense/Immune',
+  '👤': 'Clone activated',
+  '🧬': 'Mutated to Alien',
+  '🐱': 'Cat (2 noises)',
+  '🌀': 'Teleport used',
+  '⚡': 'Adrenaline used',
+  '💊': 'Sedatives used',
+  '👁️': 'Identity revealed',
+  '🎯': 'Power used',
+  '🚀': 'Escaped'
 };
 
 // Individual player token in table header
@@ -184,7 +190,7 @@ function PlayerTracker({
       // 2. SPECIAL EVENT ROWS
       // Filter for special events in this turn
       const specialEvents = turnAnnouncements.filter(a =>
-        ['MUTATION', 'ELIMINATED', 'REVEAL_IDENTITY'].includes(a.type)
+        ['MUTATION', 'ELIMINATED', 'REVEAL_IDENTITY', 'SPOTLIGHT', 'SENSOR', 'TELEPORT_USED', 'POWER_FREE_TELEPORT', 'ATTACK_IMMUNE', 'DEFENSE_USED', 'CLONE_USED', 'ADRENALINE_USED', 'SEDATIVES_USED'].includes(a.type)
       );
 
       // Group/Sort if necessary, but for now just one row per event to be safe and clear
@@ -206,9 +212,49 @@ function PlayerTracker({
           rowClass += ' death-row';
         } else if (event.type === 'REVEAL_IDENTITY') {
           label = '👁️';
-          cellText = 'REVEALED';
+          cellText = 'USED';
           cellFull = event.message || 'Identity revealed';
           rowClass += ' reveal-row';
+        } else if (event.type === 'SPOTLIGHT') {
+          label = '🔦';
+          cellText = 'USED';
+          cellFull = event.message || `Spotlight on ${event.sector}`;
+          rowClass += ' spotlight-row';
+        } else if (event.type === 'SENSOR') {
+          label = '📡';
+          cellText = 'USED';
+          cellFull = event.message || `Sensor on ${event.targetSector}`;
+          rowClass += ' sensor-row';
+        } else if (event.type === 'TELEPORT_USED' || event.type === 'POWER_FREE_TELEPORT') {
+          label = '🌀';
+          cellText = 'TELEPORT';
+          cellFull = event.message || 'Teleported to Human Sector';
+          rowClass += ' teleport-row';
+        } else if (event.type === 'ATTACK_IMMUNE') {
+          label = '🛡️';
+          cellText = 'IMMUNE';
+          cellFull = event.message || 'Attack immunity (Brute)';
+          rowClass += ' immune-row';
+        } else if (event.type === 'DEFENSE_USED') {
+          label = '🛡️';
+          cellText = 'SURVIVED';
+          cellFull = event.message || 'Defense item blocked attack';
+          rowClass += ' defense-row';
+        } else if (event.type === 'CLONE_USED') {
+          label = '👤';
+          cellText = 'CLONE';
+          cellFull = event.message || 'Clone respawned at Human Sector';
+          rowClass += ' clone-row';
+        } else if (event.type === 'ADRENALINE_USED') {
+          label = '⚡';
+          cellText = 'ADRENALINE';
+          cellFull = event.message || 'Adrenaline used (+1 movement)';
+          rowClass += ' adrenaline-row';
+        } else if (event.type === 'SEDATIVES_USED') {
+          label = '💊';
+          cellText = 'SEDATIVES';
+          cellFull = event.message || 'Sedatives used (silent move)';
+          rowClass += ' sedatives-row';
         }
 
         const specialRow = {
@@ -233,26 +279,35 @@ function PlayerTracker({
           };
         }
 
-        // Use targetId for REVEAL_IDENTITY if applicable
-        if (event.targetId && specialRow.players[event.targetId]) {
-          // If the event is about a target, maybe show it on the target's column?
-          // The prompt says "row should be added... for that action".
-          // For Reveal, the Medic did it actions the Target.
-          // Let's put it on the Target's column as they are the one revealing? 
-          // Or the Medic's?
-          // The event log says "Player X revealed Player Y".
-          // Let's put it on the *Target* column because that's the interesting part for the tracker (knowing who they are).
-          // But wait, the Medic used the power.
-          // Let's put it on BOTH if possible? Or just the Target.
-          // The code above puts it on `event.playerId` (Medical).
-          // Let's OVERRIDE for Reveal to put on Target.
+        // SPOTLIGHT: Show "USED" in user's column, sector in revealed players' columns
+        if (event.type === 'SPOTLIGHT' && event.revealed && event.revealed.length > 0) {
+          event.revealed.forEach(r => {
+            if (specialRow.players[r.id]) {
+              specialRow.players[r.id] = {
+                text: event.sector || r.position,
+                full: `Found in ${event.sector || r.position}`,
+                type: 'spotlight-found'
+              };
+            }
+          });
         }
 
-        if (event.type === 'REVEAL_IDENTITY' && event.targetId) {
+        // SENSOR: Show target's sector in target's column
+        if (event.type === 'SENSOR' && event.targetId && specialRow.players[event.targetId]) {
           specialRow.players[event.targetId] = {
-            text: `IS ${event.targetRole?.substr(0, 1) || '?'}`,
+            text: event.targetSector,
+            full: `Sensor revealed at ${event.targetSector}`,
+            type: 'sensor-found'
+          };
+        }
+
+        // REVEAL_IDENTITY: Show role in target's column
+        if (event.type === 'REVEAL_IDENTITY' && event.targetId && specialRow.players[event.targetId]) {
+          const roleIcon = event.targetRole === 'human' ? '👤' : '👽';
+          specialRow.players[event.targetId] = {
+            text: `${roleIcon} ${event.targetRole?.toUpperCase()}`,
             full: `${event.targetName} revealed as ${event.targetRole}`,
-            type: 'special-info'
+            type: 'reveal-result'
           };
         }
 
@@ -371,6 +426,41 @@ function PlayerTracker({
           text: 'S',
           full: 'Silent Sector (Sedatives used)',
           type: 'silence'
+        };
+
+      case 'TELEPORT_USED':
+        return {
+          text: `TP: ${announcement.sector}`,
+          full: `Teleported to ${announcement.sector || 'Human Sector'}`,
+          type: 'teleport'
+        };
+
+      case 'ADRENALINE_USED':
+        return {
+          text: 'ADR',
+          full: 'Adrenaline used (+1 movement)',
+          type: 'adrenaline'
+        };
+
+      case 'SEDATIVES_USED':
+        return {
+          text: 'SED',
+          full: 'Sedatives used (silent move)',
+          type: 'sedatives'
+        };
+
+      case 'ATTACK_IMMUNE':
+        return {
+          text: 'IMM',
+          full: 'Attack immunity (Brute Alien)',
+          type: 'immune'
+        };
+
+      case 'POWER_FREE_TELEPORT':
+        return {
+          text: `CPTP: ${announcement.sector}`,
+          full: `Co-Pilot teleported to ${announcement.sector || 'Human Sector'}`,
+          type: 'teleport'
         };
 
       default:

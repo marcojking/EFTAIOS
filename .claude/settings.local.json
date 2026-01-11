@@ -15,7 +15,21 @@
       "Bash(npm run build:*)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(node server/index.js:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(where:*)",
+      "Bash(node scripts/extract-card-images.js:*)",
+      "Bash(dir /s /b \"C:\\\\Users\\\\marco\\\\Desktop\\\\251231_CODE_EFTAIOS_MarcoKing\\\\30_CODE\\\\client\\\\public\\\\assets\\\\cards\\\\*.png\")",
+      "Bash(npm run server:*)",
+      "Bash(node --check:*)",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_console_messages",
+      "Bash(powershell \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_close"
     ]
   }
 }

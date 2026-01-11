@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  hasOfficialArt,
+  getCharacterImagePath,
+  getItemImagePath
+} from '../config/characterArt';
 import './PlayerHUD.css';
 
-function PlayerHUD({ player, isHost, gameState, onUseItem, onUsePower, selectedItem, isMyTurn }) {
-  if (isHost) {
+function PlayerHUD({ player, isSpectator, gameState, onUseItem, onUsePower, selectedItem, isMyTurn }) {
+  const [portraitError, setPortraitError] = useState(false);
+  if (isSpectator) {
     return (
       <div className="player-hud host-hud">
         <div className="hud-section">
@@ -82,8 +88,20 @@ function PlayerHUD({ player, isHost, gameState, onUseItem, onUsePower, selectedI
         <div className="role-badge" style={{ background: isHuman ? '#00d9ff' : '#e94560' }}>
           {isHuman ? 'HUMAN' : 'ALIEN'}
         </div>
-        <h3 className="character-name">{player.character?.name}</h3>
-        <p className="character-full-name">{player.character?.fullName}</p>
+        <div className="character-identity">
+          {player.character?.id && hasOfficialArt(player.character.id) && !portraitError && (
+            <img
+              src={getCharacterImagePath(player.character.id)}
+              alt={player.character?.name}
+              className="character-portrait"
+              onError={() => setPortraitError(true)}
+            />
+          )}
+          <div className="character-text">
+            <h3 className="character-name">{player.character?.name}</h3>
+            <p className="character-full-name">{player.character?.fullName}</p>
+          </div>
+        </div>
       </div>
 
       {/* Character Power */}
@@ -137,13 +155,14 @@ function PlayerHUD({ player, isHost, gameState, onUseItem, onUsePower, selectedI
           ) : (
             player.items.map(item => {
               const canUse = canAlienUseItem(item.type);
+              const itemImagePath = getItemImagePath(item.type);
               return (
                 <div
                   key={item.id}
                   className={`item-card ${selectedItem?.id === item.id ? 'selected' : ''} ${!canUse ? 'disabled' : ''} ${!isMyTurn ? 'not-my-turn' : ''}`}
                   onClick={() => isMyTurn && canUse && item.type !== 'CLONE' && onUseItem && onUseItem(item)}
                 >
-                  <span className="item-icon">{getItemIcon(item.type)}</span>
+                  <ItemIcon type={item.type} imagePath={itemImagePath} />
                   <div className="item-info">
                     <span className="item-name">
                       {item.name}
@@ -188,6 +207,24 @@ function getItemIcon(type) {
     case 'MUTATION': return '🧬';
     default: return '📦';
   }
+}
+
+function ItemIcon({ type, imagePath }) {
+  const [imageError, setImageError] = React.useState(false);
+
+  if (imagePath && !imageError) {
+    return (
+      <div className="item-icon item-icon-image">
+        <img
+          src={imagePath}
+          alt={type}
+          onError={() => setImageError(true)}
+        />
+      </div>
+    );
+  }
+
+  return <span className="item-icon">{getItemIcon(type)}</span>;
 }
 
 export default PlayerHUD;

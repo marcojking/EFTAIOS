@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './LandingScreen.css';
 
-function LandingScreen({ onCreateRoom, onJoinRoom, onStartTeachingGame, isConnecting, isConnected, error }) {
+function LandingScreen({ onCreateRoom, onJoinRoom, isConnecting, isConnected, error }) {
     const [mode, setMode] = useState('menu');
     const [name, setName] = useState('');
     const [roomCode, setRoomCode] = useState('');
@@ -177,18 +177,7 @@ function LandingScreen({ onCreateRoom, onJoinRoom, onStartTeachingGame, isConnec
                             <span className="mode-label">Join Existing Room</span>
                         </button>
 
-                        <div className="divider-text">OR</div>
 
-                        <button
-                            className="option-btn practice-btn"
-                            onClick={() => { addLog('Practice mode clicked'); setMode('practice'); }}
-                            disabled={!isReady}
-                            style={{ opacity: !isReady ? 0.5 : 1 }}
-                        >
-                            <span className="mode-icon">🤖</span>
-                            <span className="mode-label">Play the Computer</span>
-                            <span className="mode-desc">Practice against heuristic opponents</span>
-                        </button>
                     </div>
                 )}
 
@@ -246,64 +235,7 @@ function LandingScreen({ onCreateRoom, onJoinRoom, onStartTeachingGame, isConnec
                     </form>
                 )}
 
-                {mode === 'practice' && (
-                    <div className="practice-form">
-                        <div className="form-header" style={{ textAlign: 'center', marginBottom: '16px' }}>
-                            <h2>🤖 Play the Computer</h2>
-                            <p className="mode-desc">Practice against heuristic-based opponents</p>
-                        </div>
 
-                        <div className="form-group">
-                            <label>Difficulty</label>
-                            <div className="difficulty-buttons">
-                                <button
-                                    type="button"
-                                    className={`difficulty-btn ${difficulty === 'beginner' ? 'active' : ''}`}
-                                    onClick={() => setDifficulty('beginner')}
-                                >
-                                    🌱 Beginner
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`difficulty-btn ${difficulty === 'standard' ? 'active' : ''}`}
-                                    onClick={() => setDifficulty('standard')}
-                                >
-                                    ⚖️ Standard
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`difficulty-btn ${difficulty === 'advanced' ? 'active' : ''}`}
-                                    onClick={() => setDifficulty('advanced')}
-                                >
-                                    🔥 Advanced
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="button-group">
-                            <button
-                                type="button"
-                                className="back-btn"
-                                onClick={() => setMode('menu')}
-                            >
-                                Back
-                            </button>
-                            <button
-                                type="button"
-                                className="confirm-join-btn start-practice-btn"
-                                onClick={() => {
-                                    addLog(`Starting practice game: difficulty=${difficulty}`);
-                                    if (onStartTeachingGame) {
-                                        onStartTeachingGame(difficulty);
-                                    }
-                                }}
-                                disabled={!isReady}
-                            >
-                                Start Practice Game
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

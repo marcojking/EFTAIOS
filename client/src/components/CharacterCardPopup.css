@@ -1,0 +1,235 @@
+/* CharacterCardPopup.css - Game start character reveal popup */
+
+.character-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.character-popup-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.character-popup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+}
+
+.character-popup-header {
+  margin-bottom: 20px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.role-badge.human {
+  background: linear-gradient(135deg, #4A90D9, #2E5F8A);
+  color: white;
+  box-shadow: 0 4px 15px rgba(74, 144, 217, 0.4);
+}
+
+.role-badge.alien {
+  background: linear-gradient(135deg, #E74C3C, #A93226);
+  color: white;
+  box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+
+.character-card-container {
+  margin-bottom: 24px;
+}
+
+.character-flip-card {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Character placeholder for missing artwork */
+.character-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    var(--character-color) 0%,
+    color-mix(in srgb, var(--character-color) 70%, black) 100%
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  border: 4px solid var(--role-color);
+  border-radius: 12px;
+}
+
+.placeholder-icon {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.placeholder-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: rgba(255, 255, 255, 0.9);
+}
+
+.placeholder-rank {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.placeholder-name {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Character info section */
+.character-info {
+  text-align: center;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.character-info.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.character-name {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: white;
+  margin: 0 0 4px 0;
+}
+
+.character-full-name {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 20px 0;
+  font-style: italic;
+}
+
+/* Power card */
+.power-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.power-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.power-icon {
+  font-size: 1.2rem;
+}
+
+.power-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: white;
+  flex: 1;
+}
+
+.power-uses {
+  background: rgba(255, 200, 0, 0.3);
+  color: #ffd700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.power-description {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Acknowledge button */
+.acknowledge-btn {
+  background: linear-gradient(135deg, #e94560, #c73e54);
+  color: white;
+  border: none;
+  padding: 16px 48px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  border-radius: 30px;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(233, 69, 96, 0.4);
+}
+
+.acknowledge-btn.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.acknowledge-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 30px rgba(233, 69, 96, 0.6);
+}
+
+.acknowledge-btn:active {
+  transform: scale(0.98);
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .character-popup-content {
+    padding: 16px;
+  }
+
+  .character-name {
+    font-size: 1.5rem;
+  }
+
+  .power-card {
+    padding: 12px;
+  }
+
+  .acknowledge-btn {
+    padding: 14px 36px;
+    font-size: 1rem;
+  }
+}

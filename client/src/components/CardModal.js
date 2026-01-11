@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import FlipCard from './FlipCard';
+import { DANGEROUS_SECTOR_CARDS, getItemImagePath } from '../config/characterArt';
 import './CardModal.css';
 
 function CardModal({
@@ -10,7 +12,61 @@ function CardModal({
   onClose,
   player
 }) {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+
+  useEffect(() => {
+    if (card) {
+      // Reset states
+      setIsFlipped(false);
+      setShowActions(false);
+
+      // Auto-flip after a short delay
+      const flipTimer = setTimeout(() => {
+        setIsFlipped(true);
+      }, 500);
+
+      // Show action buttons after flip completes
+      const actionsTimer = setTimeout(() => {
+        setShowActions(true);
+      }, 1100);
+
+      return () => {
+        clearTimeout(flipTimer);
+        clearTimeout(actionsTimer);
+      };
+    }
+  }, [card]);
+
   if (!card) return null;
+
+  // Get card image paths based on type
+  const getCardImages = () => {
+    switch (card.type) {
+      case 'NOISE_YOUR_SECTOR':
+        return {
+          front: DANGEROUS_SECTOR_CARDS.NOISE_YOUR_SECTOR,
+          back: DANGEROUS_SECTOR_CARDS.BACK
+        };
+      case 'NOISE_ANY_SECTOR':
+        return {
+          front: DANGEROUS_SECTOR_CARDS.NOISE_ANY_SECTOR,
+          back: DANGEROUS_SECTOR_CARDS.BACK
+        };
+      case 'SILENCE':
+        return {
+          front: DANGEROUS_SECTOR_CARDS.SILENCE,
+          back: DANGEROUS_SECTOR_CARDS.BACK
+        };
+      default:
+        return {
+          front: null,
+          back: DANGEROUS_SECTOR_CARDS.BACK
+        };
+    }
+  };
+
+  const cardImages = getCardImages();
 
   const getCardColor = () => {
     switch (card.type) {
@@ -41,42 +97,64 @@ function CardModal({
 
   // Handle Double Noise power usage
   const handleUseDoubleNoise = () => {
-    // If it's a "Noise in Your Sector" card, we pass useDoublePower=true to onDeclareNoiseHere
     if (card.type === 'NOISE_YOUR_SECTOR') {
-      onDeclareNoiseHere(false, true); // useCat=false, useDoublePower=true
+      onDeclareNoiseHere(false, true);
     } else {
-      // For "Noise Any Sector", we trigger the double noise flow via onDeclareNoiseAnywhere(true)
       onDeclareNoiseAnywhere(true);
     }
   };
 
-  // Handle Cat item usage - allows declaring noise anywhere instead of here
+  // Handle Cat item usage
   const handleUseCat = () => {
-    // Call onDeclareNoiseHere with useCat=true to trigger the Cat logic
     onDeclareNoiseHere(true);
   };
+
+  // Get item image if the card has one
+  const itemImage = card.hasItem && card.itemData
+    ? getItemImagePath(card.itemData.type)
+    : null;
 
   return (
     <div className="card-modal-overlay">
       <div className={`card-modal ${cardColor}`}>
         <div className="card-header">
           <h2>Card Drawn</h2>
-          {/* Close button removed - must use action buttons */}
         </div>
 
         <div className="card-content">
-          <div className={`card-display ${cardColor}`}>
-            <div className="card-type-badge">{getCardTypeName(card.type)}</div>
-            <div className="card-title">{card.name}</div>
-            {card.hasItem && card.itemData && (
-              <div className="card-item">
-                <span className="item-badge">+ ITEM</span>
-                <span className="item-name">{card.itemData.name}</span>
+          <div className="card-flip-container">
+            <FlipCard
+              frontImage={cardImages.front}
+              backImage={cardImages.back}
+              isFlipped={isFlipped}
+              width={240}
+              height={336}
+              className="dangerous-sector-card animate-entrance"
+            >
+              {/* Overlay content on the card front */}
+              <div className="card-overlay-content">
+                <div className={`card-type-badge ${cardColor}`}>
+                  {getCardTypeName(card.type)}
+                </div>
+
+                {card.hasItem && card.itemData && (
+                  <div className="card-item-badge">
+                    {itemImage && (
+                      <img
+                        src={itemImage}
+                        alt={card.itemData.name}
+                        className="item-icon"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    )}
+                    <span className="item-text">+ {card.itemData.name}</span>
+                  </div>
+                )}
               </div>
-            )}
+            </FlipCard>
           </div>
 
-          <div className="card-instructions">
+          <div className={`card-instructions ${showActions ? 'visible' : ''}`}>
             {card.type === 'NOISE_YOUR_SECTOR' && (
               <>
                 <p>You must declare noise in your <strong>current sector</strong>.</p>
@@ -86,12 +164,12 @@ function CardModal({
                   </button>
                   {hasCatItem && (
                     <button className="action-btn cat-btn" onClick={handleUseCat}>
-                      🐱 Use Cat (Declare Anywhere)
+                      Use Cat (Declare Anywhere)
                     </button>
                   )}
                   {hasDoubleNoisePower && (
                     <button className="action-btn power-btn" onClick={handleUseDoubleNoise}>
-                      ⚡ Use Double Noise Power (2 sectors)
+                      Use Double Noise Power (2 sectors)
                     </button>
                   )}
                 </div>
@@ -110,7 +188,7 @@ function CardModal({
                   </button>
                   {hasDoubleNoisePower && (
                     <button className="action-btn power-btn" onClick={handleUseDoubleNoise}>
-                      ⚡ Use Double Noise Power (2 sectors)
+                      Use Double Noise Power (2 sectors)
                     </button>
                   )}
                 </div>

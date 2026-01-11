@@ -1,229 +1,206 @@
-/**
- * AI Player Engine for EFTAIOS Teaching Mode
- * Uses heuristic scoring from tutorialHints to make decisions
- * Includes feedback logging for strategy improvement
- */
-
-const { generateMoveHints, generateTurnTips, SCORES } = require('./tutorialHints');
-const { getAdjacentSectors, getReachableSectors } = require('./mapUtils');
+const BotTracker = require('./ai/BotTracker');
+const BotPlanner = require('./ai/BotPlanner');
+const { generatePersonality } = require('./ai/BotPersonality');
 
 /**
- * AI Decision Engine
- * Makes move decisions based on role, map, and game state
+ * BotPlayer - Expert AI Player Engine
+ *
+ * Integrates BotTracker (state estimation) and BotPlanner (strategy)
+ * with personality-based decision making and debug logging.
  */
-class AIPlayer {
-    constructor(playerId, difficulty = 'standard') {
+class BotPlayer {
+    constructor(playerId, personality = null) {
         this.playerId = playerId;
-        this.difficulty = difficulty; // 'beginner' | 'standard' | 'advanced'
+        this.personality = personality || generatePersonality();
+
+        // Modules initialized on first move (require map/gameState access)
+        this.tracker = null;
+        this.planner = null;
+
+        // Thinking delay (from personality)
+        this.thinkingDelay = this.personality.thinkingSpeed;
+
+        // Debug and history
         this.moveHistory = [];
-        this.feedbackLog = [];
+        this.currentThought = '';
+        this.debugInfo = {};
     }
 
     /**
-     * Decide the next move for the AI player
-     * @param {Object} gameState - Current game state
-     * @returns {Object} Decision object with action and target
+     * Initialize modules when game starts
+     */
+    _init(gameState) {
+        if (!this.tracker) {
+            console.log(`[BotPlayer] Initializing for ${this.playerId}`);
+            this.tracker = new BotTracker(
+                this.playerId,
+                gameState.map,
+                gameState.players,
+                gameState.settings
+            );
+            this.planner = new BotPlanner(
+                this.playerId,
+                gameState.map,
+                this.personality
+            );
+        }
+    }
+
+    /**
+     * Get the thinking delay for this bot
+     */
+    getThinkingDelay() {
+        return this.thinkingDelay;
+    }
+
+    /**
+     * Decide the next move
      */
     decideMove(gameState) {
+        this._init(gameState);
+
         const player = gameState.players.find(p => p.id === this.playerId);
         if (!player || !player.alive || player.escaped) {
             return { action: 'none', reason: 'Cannot act' };
         }
 
-        const isHuman = player.role === 'human';
-        const turnNumber = gameState.currentTurn;
+        // Update tracker with any new announcements
+        this.tracker.updateSettings(gameState.settings);
+        this.tracker.processNewAnnouncements(gameState.announcements, gameState.players);
 
-        // Get scored moves using the tutorial heuristics
-        const moveHints = generateMoveHints(gameState, this.playerId);
+        // Get decision from planner
+        const decision = this.planner.decideMove(gameState, this.tracker, player);
 
-        if (moveHints.length === 0) {
-            return { action: 'skip', reason: 'No valid moves' };
-        }
-
-        // Select move based on difficulty
-        let selectedMove;
-        switch (this.difficulty) {
-            case 'beginner':
-                // Sometimes picks suboptimal moves (learning simulation)
-                selectedMove = this._pickWithRandomness(moveHints, 0.3);
-                break;
-            case 'advanced':
-                // Always picks the best move
-                selectedMove = moveHints[0];
-                break;
-            default: // 'standard'
-                // Usually picks top 2-3 moves
-                selectedMove = this._pickWithRandomness(moveHints, 0.1);
-        }
-
-        // Log the decision
-        const decision = {
-            action: 'move',
-            target: selectedMove.sector,
-            score: selectedMove.score,
-            reasons: selectedMove.reasons,
-            alternatives: moveHints.slice(0, 3).map(h => ({
-                sector: h.sector,
-                score: h.score
-            })),
-            turnNumber,
-            timestamp: Date.now()
+        // Store debug info
+        this.currentThought = `${decision.action.toUpperCase()}: ${decision.reason}`;
+        this.debugInfo = {
+            tracker: this.tracker.getDebugInfo(),
+            planner: this.planner.getDebugInfo(),
+            decision: decision
         };
 
-        this.moveHistory.push(decision);
+        // Inject into player object for broadcast
+        player.aiReason = this.currentThought;
+
+        // Log decision
+        this.moveHistory.push({
+            turn: gameState.currentTurn,
+            decision,
+            timestamp: Date.now()
+        });
+
         return decision;
     }
 
     /**
-     * Decide whether to attack (aliens only or humans with Attack card)
+     * Decide whether to attack (for Lurking Alien or separate attack phase)
      */
     decideAttack(gameState) {
+        this._init(gameState);
+
         const player = gameState.players.find(p => p.id === this.playerId);
-        if (!player) return { action: 'skip' };
-
-        const isAlien = player.role === 'alien';
-        const hasAttackCard = player.items?.some(i => i.type === 'ATTACK');
-
-        if (!isAlien && !hasAttackCard) {
-            return { action: 'skip', reason: 'Cannot attack' };
+        if (!player || !player.alive) {
+            return { action: 'skip' };
         }
 
-        // Simple heuristic: attack if there's noise in current sector recently
-        const recentNoise = gameState.announcements?.slice(-5).find(a =>
-            a.type === 'NOISE' && a.sector === player.position
-        );
+        // Check human probability at current position
+        const prob = this.tracker.getHumanProbability(player.position);
 
-        if (recentNoise && isAlien) {
+        if (prob > 0.3) {
             return {
                 action: 'attack',
                 target: player.position,
-                reason: 'Recent noise in my sector - likely target'
+                reason: `High human probability (${(prob * 100).toFixed(0)}%)`
             };
         }
 
-        // Beginner AI is more aggressive (makes mistakes)
-        if (this.difficulty === 'beginner' && isAlien && Math.random() < 0.2) {
-            return {
-                action: 'attack',
-                target: player.position,
-                reason: 'Beginner: random attack'
-            };
-        }
-
-        return { action: 'skip', reason: 'No attack opportunity' };
+        return { action: 'skip' };
     }
 
     /**
-     * Decide which sector to announce noise in (when given choice)
+     * Decide deception for Noise in Any Sector
      */
-    decideNoiseAnnouncement(gameState, isNoiseAnySector) {
+    decideDeception(gameState, isNoiseAnySector) {
+        this._init(gameState);
+
         const player = gameState.players.find(p => p.id === this.playerId);
-        if (!player) return player.position;
+        if (!player) return player?.position;
 
         if (!isNoiseAnySector) {
-            return player.position; // Must announce current position
+            // Must announce real location
+            return player.position;
         }
 
-        // Deception: announce somewhere away from actual position
-        const map = gameState.map;
-        const allSectors = map.grid.map(h => h.label);
-        const currentPos = player.position;
+        // Use planner's deception strategy
+        const deceptionSector = this.planner.planDeception(gameState, player);
+        this.currentThought = `Deception: Declaring noise in ${deceptionSector}`;
 
-        // Find sectors far from current position
-        const deceptionCandidates = allSectors.filter(sector => {
-            // Check it's not near our actual position
-            const adjacent = getAdjacentSectors(map, currentPos);
-            return !adjacent.includes(sector) && sector !== currentPos;
-        });
-
-        // Pick a random far sector
-        const randomIndex = Math.floor(Math.random() * deceptionCandidates.length);
-        return deceptionCandidates[randomIndex] || currentPos;
+        return deceptionSector;
     }
 
     /**
-     * Record user feedback on a move
+     * Choose which item to discard when at max capacity
      */
-    recordFeedback(turnNumber, rating, comment = '') {
-        const move = this.moveHistory.find(m => m.turnNumber === turnNumber);
-        if (move) {
-            this.feedbackLog.push({
-                turnNumber,
-                move: move.target,
-                score: move.score,
-                reasons: move.reasons,
-                rating, // 'good' | 'bad' | 'neutral'
-                comment,
-                timestamp: Date.now()
-            });
+    chooseItemToDiscard(gameState, items, newItem) {
+        this._init(gameState);
+
+        const player = gameState.players.find(p => p.id === this.playerId);
+        if (!player) return newItem;
+
+        return this.planner.chooseDiscard(items, newItem, player);
+    }
+
+    /**
+     * Process end of turn for tracking
+     */
+    processEndTurn(gameState, playerId, moveSpeed) {
+        if (this.tracker) {
+            this.tracker.processEndTurn(playerId, moveSpeed);
         }
     }
 
     /**
-     * Export the full game log with feedback for analysis
+     * Advance turn counter
      */
-    exportLog() {
+    nextTurn() {
+        if (this.tracker) {
+            this.tracker.nextTurn();
+        }
+    }
+
+    /**
+     * Get current debug information
+     */
+    getDebugInfo() {
         return {
             playerId: this.playerId,
-            difficulty: this.difficulty,
-            moveHistory: this.moveHistory,
-            feedbackLog: this.feedbackLog,
-            summary: {
-                totalMoves: this.moveHistory.length,
-                goodMoves: this.feedbackLog.filter(f => f.rating === 'good').length,
-                badMoves: this.feedbackLog.filter(f => f.rating === 'bad').length,
-                averageScore: this.moveHistory.reduce((sum, m) => sum + m.score, 0) / this.moveHistory.length
-            }
+            personality: this.personality,
+            currentThought: this.currentThought,
+            trackerInfo: this.tracker?.getDebugInfo() || {},
+            plannerInfo: this.planner?.getDebugInfo() || {},
+            moveHistory: this.moveHistory.slice(-5) // Last 5 moves
         };
     }
 
     /**
-     * Pick a move with some randomness based on difficulty
+     * Get personality info (for lobby display)
      */
-    _pickWithRandomness(hints, randomFactor) {
-        if (Math.random() < randomFactor && hints.length > 1) {
-            // Pick from top 3 instead of just top 1
-            const topN = hints.slice(0, Math.min(3, hints.length));
-            return topN[Math.floor(Math.random() * topN.length)];
-        }
-        return hints[0];
-    }
-}
-
-/**
- * Create an AI-controlled game for teaching mode
- */
-function createTeachingGame(mapData, humanPlayerId, aiRole = 'alien', difficulty = 'standard') {
-    const GameState = require('./GameState');
-
-    // Create AI player IDs
-    const aiPlayers = [];
-    const playerCount = aiRole === 'alien' ? 4 : 3; // More aliens if AI plays alien
-
-    for (let i = 0; i < playerCount; i++) {
-        aiPlayers.push({
-            id: `ai_${i}`,
-            name: `AI Player ${i + 1}`,
-            isAI: true,
-            difficulty
-        });
+    getPersonalityInfo() {
+        return {
+            aggression: this.personality.aggression,
+            riskTolerance: this.personality.riskTolerance,
+            huntingStyle: this.personality.huntingStyle,
+            deceptionStyle: this.personality.deceptionStyle,
+            escapeUrgency: this.personality.escapeUrgency
+        };
     }
 
-    // Add human player
-    const allPlayers = [
-        { id: humanPlayerId, name: 'You', isAI: false },
-        ...aiPlayers
-    ];
-
-    return {
-        players: allPlayers,
-        aiInstances: aiPlayers.map(p => new AIPlayer(p.id, difficulty)),
-        humanPlayerId,
-        mapData
-    };
+    // Legacy support
+    recordFeedback() { }
+    exportLog() { return { history: this.moveHistory }; }
 }
 
 module.exports = {
-    AIPlayer,
-    createTeachingGame
+    BotPlayer,
+    AIPlayer: BotPlayer
 };

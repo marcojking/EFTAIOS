@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useWebSocket from './hooks/useWebSocket';
 import LandingScreen from './components/LandingScreen';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
 import GlobalPopup from './components/GlobalPopup';
+import CharacterCardPopup from './components/CharacterCardPopup';
 import './App.css';
 
 
@@ -34,6 +35,8 @@ function App() {
   const [popup, setPopup] = useState(null);
   const [pendingSecondNoise, setPendingSecondNoise] = useState(null);
   const [pendingEscapeChoice, setPendingEscapeChoice] = useState(null);
+  const [showCharacterPopup, setShowCharacterPopup] = useState(false);
+  const characterShownRef = useRef(false);
 
   // Initialize persistent player ID
   useEffect(() => {
@@ -91,18 +94,6 @@ function App() {
       }));
       setLandingError(null);
     }
-    else if (lastMessage.type === 'TEACHING_GAME_CREATED') {
-      // Teaching game created - update state to enter the game
-      setPlayerState(prev => ({
-        ...prev,
-        roomCode: lastMessage.roomCode,
-        id: lastMessage.playerId,
-        isHost: true, // Player controls the teaching game
-        isHostPlayer: true, // But they play, not spectate
-        name: 'You'
-      }));
-      setLandingError(null);
-    }
     else if (lastMessage.type === 'ERROR') {
       setLandingError(lastMessage.message);
     }
@@ -142,6 +133,33 @@ function App() {
     }
   }, [lastMessage]);
 
+  // Show character popup when game starts and player has a character
+  useEffect(() => {
+    // Only show for players (not host-only spectators)
+    const isPlayer = !playerState.isHost || playerState.isHostPlayer;
+
+    if (
+      gameState?.phase !== 'LOBBY' &&
+      gameState?.myPlayer?.character &&
+      isPlayer &&
+      !characterShownRef.current
+    ) {
+      setShowCharacterPopup(true);
+      characterShownRef.current = true;
+    }
+  }, [gameState, playerState.isHost, playerState.isHostPlayer]);
+
+  // Reset character shown ref when returning to lobby
+  useEffect(() => {
+    if (gameState?.phase === 'LOBBY' || !playerState.roomCode) {
+      characterShownRef.current = false;
+    }
+  }, [gameState?.phase, playerState.roomCode]);
+
+  const handleCharacterPopupClose = useCallback(() => {
+    setShowCharacterPopup(false);
+  }, []);
+
   // ACTIONS
 
   const handleCreateRoom = useCallback(() => {
@@ -174,15 +192,19 @@ function App() {
     send({ type: 'HOST_JOIN_AS_PLAYER', name });
   }, [send]);
 
-  const handleStartTeachingGame = useCallback((difficulty) => {
-    // Use default map (FERMI) for teaching mode
-    send({
-      type: 'CREATE_TEACHING_GAME',
-      difficulty,
-      playerId: playerState.id,
-      playerName: 'You'
-    });
-  }, [send, playerState.id]);
+  const handleAddBot = useCallback((difficulty) => {
+    send({ type: 'ADD_BOT', difficulty });
+  }, [send]);
+
+  const handleUpdateBotDifficulty = useCallback((botId, difficulty) => {
+    send({ type: 'UPDATE_BOT_DIFFICULTY', botId, difficulty });
+  }, [send]);
+
+  const handleToggleSetting = useCallback((key, value) => {
+    send({ type: 'TOGGLE_SETTING', key, value });
+  }, [send]);
+
+
 
   const handleMovePlayer = useCallback((destination) => {
     send({ type: 'MOVE_PLAYER', destination });
@@ -259,7 +281,8 @@ function App() {
   const showGame = playerState.roomCode && gameState && gameState.phase !== 'LOBBY';
 
   // Check if it's this player's turn (for green glow effect)
-  const isMyTurn = !playerState.isHost && gameState?.currentPlayerId === playerState.id;
+  // Host can also be a player if isHostPlayer is true
+  const isMyTurn = (!playerState.isHost || playerState.isHostPlayer) && gameState?.currentPlayerId === playerState.id;
 
   return (
     <div className="App">
@@ -274,12 +297,20 @@ function App() {
         />
       )}
 
+      {/* Character Card Popup - shown at game start */}
+      <CharacterCardPopup
+        character={gameState?.myPlayer?.character}
+        role={gameState?.myPlayer?.role}
+        isVisible={showCharacterPopup}
+        onAcknowledge={handleCharacterPopupClose}
+      />
+
       {/* Pre-connection / Landing */}
       {(!isConnected || showLanding) && (
         <LandingScreen
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
-          onStartTeachingGame={handleStartTeachingGame}
+
           isConnecting={isConnecting}
           isConnected={isConnected}
           error={wsError || landingError}
@@ -296,6 +327,9 @@ function App() {
           onKickPlayer={handleKickPlayer}
           onSetTutorialMode={handleSetTutorialMode}
           onHostJoinAsPlayer={handleHostJoinAsPlayer}
+          onAddBot={handleAddBot}
+          onUpdateBotDifficulty={handleUpdateBotDifficulty}
+          onToggleSetting={handleToggleSetting}
           myPlayerId={playerState.id}
           roomCode={playerState.roomCode}
           connected={isConnected}

@@ -41,6 +41,34 @@
   margin-bottom: 12px;
 }
 
+.character-identity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.character-portrait {
+  width: 48px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.player-hud.human .character-portrait {
+  border-color: rgba(0, 217, 255, 0.4);
+}
+
+.player-hud.alien .character-portrait {
+  border-color: rgba(233, 69, 96, 0.4);
+}
+
+.character-text {
+  text-align: left;
+}
+
 .character-name {
   font-size: 1.2rem;
   font-weight: 600;
@@ -138,7 +166,25 @@
 .item-icon {
   font-size: 1.5rem;
   width: 36px;
+  height: 36px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.item-icon.item-icon-image {
+  width: 40px;
+  height: 56px;
+}
+
+.item-icon.item-icon-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .item-info {

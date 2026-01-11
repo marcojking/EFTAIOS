@@ -50,6 +50,19 @@ class GameState {
 
     // Turn history for spectator timeline lookback
     this.turnHistory = [];
+
+    // Game Settings (Defaults)
+    this.settings = {
+      revealCardsAndAbilities: false  // Single toggle for revealing item usage and character powers
+    };
+  }
+
+  updateSetting(key, value) {
+    if (this.settings.hasOwnProperty(key)) {
+      this.settings[key] = value;
+      return true;
+    }
+    return false;
   }
 
   addPlayer(id, name) {
@@ -173,7 +186,9 @@ class GameState {
         powerUsage: powerUsage, // Track character power usage
         hasMoved: false, // Track if player has moved (for Fast Alien)
         ghostTokens: {}, // Client-side tracking, stored here for persistence
-        tutorialMode: player.tutorialMode || false // Preserve tutorial mode setting
+        tutorialMode: player.tutorialMode || false, // Preserve tutorial mode setting
+        isAI: player.isAI || false, // Preserve bot flag
+        difficulty: player.difficulty // Preserve bot difficulty
       };
     });
   }
@@ -583,7 +598,14 @@ class GameState {
     victims.forEach(victim => {
       // Brute Alien: Immune to all attacks - SILENT (appears as miss)
       if (victim.character?.power?.immuneToAttacks) {
-        // Do NOT add to survivors - attack appears as miss
+        // Log for spectator/omniscient view
+        this.addAnnouncement({
+          type: 'ATTACK_IMMUNE',
+          playerId: victim.id,
+          playerName: victim.name,
+          message: `${victim.name} (Brute) ignored the attack!`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         return;
       }
 
@@ -591,7 +613,14 @@ class GameState {
       const defenseItem = victim.items.find(item => item.type === 'DEFENSE');
       if (defenseItem) {
         victim.items = victim.items.filter(item => item.id !== defenseItem.id);
-        // Do NOT add to survivors or announce - attack appears as miss
+        // Log usage
+        this.addAnnouncement({
+          type: 'DEFENSE_USED',
+          playerId: victim.id,
+          playerName: victim.name,
+          message: `${victim.name} used Defense item!`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         return;
       }
 
@@ -603,16 +632,14 @@ class GameState {
         if (humanStart) {
           victim.position = humanStart.label;
         }
-        // Silent Clone: Remove from survivors list so they disappear completely
-        // survivors.push({ victim, reason: 'clone' });
-
-        // Silent Clone: No announcement
-        // this.addAnnouncement({
-        //   type: 'CLONE_USED',
-        //   playerId: victim.id,
-        //   playerName: victim.name,
-        //   message: `${victim.name} used Clone and respawned at Human Sector!`
-        // });
+        // Log usage
+        this.addAnnouncement({
+          type: 'CLONE_USED',
+          playerId: victim.id,
+          playerName: victim.name,
+          message: `${victim.name} used Clone and respawned at Human Sector!`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         return;
       }
 
@@ -789,7 +816,14 @@ class GameState {
     victims.forEach(victim => {
       // Brute Alien: Immune to all attacks - SILENT (appears as miss)
       if (victim.character?.power?.immuneToAttacks) {
-        // Do NOT add to survivors - attack appears as miss
+        // Log for spectator/omniscient view
+        this.addAnnouncement({
+          type: 'ATTACK_IMMUNE',
+          playerId: victim.id,
+          playerName: victim.name,
+          message: `${victim.name} (Brute) ignored the attack!`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         return;
       }
 
@@ -797,7 +831,14 @@ class GameState {
       const defenseItem = victim.items.find(item => item.type === 'DEFENSE');
       if (defenseItem) {
         victim.items = victim.items.filter(item => item.id !== defenseItem.id);
-        // Do NOT add to survivors or announce - attack appears as miss
+        // Log usage
+        this.addAnnouncement({
+          type: 'DEFENSE_USED',
+          playerId: victim.id,
+          playerName: victim.name,
+          message: `${victim.name} used Defense item!`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         return;
       }
 
@@ -809,16 +850,14 @@ class GameState {
         if (humanStart) {
           victim.position = humanStart.label;
         }
-        // Silent Clone: Remove from survivors list so they disappear completely
-        // survivors.push({ victim, reason: 'clone' });
-
-        // Silent Clone: No announcement
-        // this.addAnnouncement({
-        //   type: 'CLONE_USED',
-        //   playerId: victim.id,
-        //   playerName: victim.name,
-        //   message: `${victim.name} used Clone and respawned at Human Sector!`
-        // });
+        // Log usage
+        this.addAnnouncement({
+          type: 'CLONE_USED',
+          playerId: victim.id,
+          playerName: victim.name,
+          message: `${victim.name} used Clone and respawned at Human Sector!`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         return;
       }
 
@@ -1045,6 +1084,15 @@ class GameState {
         if (humanStart) {
           player.position = humanStart.label;
           effect = { teleportedTo: humanStart.label };
+          // Announce teleport
+          this.addAnnouncement({
+            type: 'TELEPORT_USED',
+            playerId: player.id,
+            playerName: player.name,
+            sector: humanStart.label,
+            message: `${player.name} used Teleport to Human Sector!`,
+            visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+          });
         }
         break;
 
@@ -1055,6 +1103,14 @@ class GameState {
         }
         this.activeEffects[playerId].adrenaline = true;
         effect = { extraMove: true };
+        // Announce adrenaline
+        this.addAnnouncement({
+          type: 'ADRENALINE_USED',
+          playerId: player.id,
+          playerName: player.name,
+          message: `${player.name} used Adrenaline (+1 movement)`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         break;
 
       case 'SEDATIVES':
@@ -1064,6 +1120,14 @@ class GameState {
         }
         this.activeEffects[playerId].sedatives = true;
         effect = { skipCard: true };
+        // Announce sedatives
+        this.addAnnouncement({
+          type: 'SEDATIVES_USED',
+          playerId: player.id,
+          playerName: player.name,
+          message: `${player.name} used Sedatives (silent move)`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+        });
         break;
 
       case 'SPOTLIGHT':
@@ -1173,7 +1237,8 @@ class GameState {
           type: 'MUTATION',
           playerId: player.id,
           playerName: player.name,
-          message: `${player.name} has MUTATED into an Alien!`
+          message: `${player.name} has MUTATED into an Alien!`,
+          visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
         });
         break;
 
@@ -1246,14 +1311,15 @@ class GameState {
       player.position = humanStart.label;
     }
 
-    // Silent teleport - no announcement
-    // this.addAnnouncement({
-    //   type: 'POWER_USED',
-    //   playerId: player.id,
-    //   playerName: player.name,
-    //   power: 'Free Teleport',
-    //   message: `${player.name} (Co-Pilot) teleported to Human Sector! They may still move this turn.`
-    // });
+    // Announce free teleport (ability reveal toggle)
+    this.addAnnouncement({
+      type: 'POWER_FREE_TELEPORT',
+      playerId: player.id,
+      playerName: player.name,
+      sector: humanStart?.label,
+      message: `${player.name} (Co-Pilot) teleported to Human Sector!`,
+      visibility: this.settings.revealCardsAndAbilities ? 'all' : 'spectator_only'
+    });
 
     // NOTE: Do NOT end turn - player can still move normally from Human Sector
     return { success: true, teleportedTo: humanStart?.label };

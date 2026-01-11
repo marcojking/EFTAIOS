@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { FERMI_MAP, MORGENLAND_MAP, LEVI_MONTALCINI_MAP } from '../data/maps';
 import './Lobby.css';
 
-function Lobby({ connected, isHost, isHostPlayer, onStartGame, onKickPlayer, onSetTutorialMode, onHostJoinAsPlayer, roomCode, gameState, myPlayerId }) {
+function Lobby({ connected, isHost, isHostPlayer, onStartGame, onKickPlayer, onSetTutorialMode, onHostJoinAsPlayer, onAddBot, onUpdateBotDifficulty, onToggleSetting, roomCode, gameState, myPlayerId }) {
   const [players, setPlayers] = useState([]);
+  const [hostName, setHostName] = useState('');
   const [selectedMap, setSelectedMap] = useState('levi_montalcini'); // Default to newest map
 
   // Handle lobby updates from gameState
@@ -20,7 +21,6 @@ function Lobby({ connected, isHost, isHostPlayer, onStartGame, onKickPlayer, onS
       case 'morgenland':
         return MORGENLAND_MAP;
       case 'levi_montalcini':
-        return LEVI_MONTALCINI_MAP;
       default:
         return LEVI_MONTALCINI_MAP;
     }
@@ -71,8 +71,12 @@ function Lobby({ connected, isHost, isHostPlayer, onStartGame, onKickPlayer, onS
                   <span className="player-number">{index + 1}</span>
                   <span className="player-name">
                     {player.name}
+                    {player.isAI && <span className="bot-badge">🤖</span>}
                     {player.tutorialMode && <span className="tutorial-badge">🎓</span>}
                   </span>
+
+                  {/* Bot Difficulty Toggle removed as only Advanced is available */}
+
                   {/* Tutorial mode toggle - only show for own player (non-host) */}
                   {player.id === myPlayerId && onSetTutorialMode && (
                     <label className="tutorial-toggle" title="Enable tutorial mode for guided gameplay">
@@ -118,18 +122,39 @@ function Lobby({ connected, isHost, isHostPlayer, onStartGame, onKickPlayer, onS
                 {/* Join as Player option for host */}
                 {!isHostPlayer && onHostJoinAsPlayer && (
                   <div className="host-join-section">
-                    <button
-                      className="host-join-btn"
-                      onClick={() => {
-                        const name = prompt('Enter your player name:');
-                        if (name && name.trim()) {
-                          onHostJoinAsPlayer(name.trim());
-                        }
-                      }}
-                    >
-                      🎮 Join as Player
-                    </button>
-                    <span className="host-join-note">Play instead of spectating</span>
+                    <div className="host-join-input-group">
+                      <input
+                        type="text"
+                        placeholder="Your Player Name"
+                        value={hostName}
+                        onChange={(e) => setHostName(e.target.value)}
+                        className="host-name-input"
+                      />
+                      <button
+                        className="host-join-btn"
+                        disabled={!hostName.trim()}
+                        onClick={() => {
+                          if (hostName.trim()) {
+                            onHostJoinAsPlayer(hostName.trim());
+                          }
+                        }}
+                      >
+                        🎮 Join as Player
+                      </button>
+                    </div>
+                    <span className="host-join-note">Play properly instead of spectating</span>
+                  </div>
+                )}
+
+                {/* Bot Management - Advanced Bots Only */}
+                {isHost && onAddBot && (
+                  <div className="bot-controls">
+                    <h3>🤖 Add Bots</h3>
+                    <div className="bot-actions">
+                      <button onClick={() => onAddBot('advanced')} className="add-bot-btn advanced">
+                        + Add Bot
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -152,12 +177,31 @@ function Lobby({ connected, isHost, isHostPlayer, onStartGame, onKickPlayer, onS
                   value={selectedMap}
                   onChange={(e) => setSelectedMap(e.target.value)}
                 >
-                  <option value="levi_montalcini">Levi-Montalcini (New)</option>
+                  <option value="levi_montalcini">Levi-Montalcini (Newest)</option>
                   <option value="morgenland">Morgenland</option>
-                  <option value="fermi">Fermi</option>
-                  <option value="galatea">Galatea</option>
-                  <option value="galilei">Galilei (Classic)</option>
+                  <option value="fermi">Fermi (Classic)</option>
                 </select>
+              </div>
+
+              <div
+                className="setting-group toggle-setting"
+                onClick={() => {
+                  if (onToggleSetting) {
+                    onToggleSetting('revealCardsAndAbilities', !gameState?.settings?.revealCardsAndAbilities);
+                  }
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <span className="toggle-text">Reveal All Cards & Abilities</span>
+                <div className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={gameState?.settings?.revealCardsAndAbilities || false}
+                    onChange={() => {}} // Handled by parent div onClick
+                    readOnly
+                  />
+                  <span className="toggle-slider"></span>
+                </div>
               </div>
 
               <div className="map-preview">

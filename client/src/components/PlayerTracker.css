@@ -405,6 +405,128 @@ tr.current-turn .turn-cell {
   background: rgba(0, 217, 255, 0.2);
 }
 
+/* Special event rows */
+tr.special-row {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+tr.special-row .turn-cell {
+  font-size: 1rem;
+}
+
+tr.special-row .special-turn-cell {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+tr.mutation-row {
+  background: rgba(255, 71, 87, 0.15);
+}
+
+tr.death-row {
+  background: rgba(255, 71, 87, 0.2);
+}
+
+tr.reveal-row {
+  background: rgba(0, 217, 255, 0.1);
+}
+
+tr.spotlight-row {
+  background: rgba(255, 211, 42, 0.1);
+}
+
+tr.teleport-row {
+  background: rgba(0, 217, 255, 0.1);
+}
+
+tr.immune-row {
+  background: rgba(46, 213, 115, 0.1);
+}
+
+tr.defense-row {
+  background: rgba(46, 213, 115, 0.1);
+}
+
+tr.clone-row {
+  background: rgba(165, 94, 234, 0.1);
+}
+
+tr.sensor-row {
+  background: rgba(0, 217, 255, 0.1);
+}
+
+tr.adrenaline-row {
+  background: rgba(255, 165, 2, 0.1);
+}
+
+tr.sedatives-row {
+  background: rgba(46, 213, 115, 0.1);
+}
+
+/* New cell types */
+.action-cell.teleport {
+  color: #00d9ff;
+  background: rgba(0, 217, 255, 0.2);
+  font-weight: 500;
+}
+
+.action-cell.adrenaline {
+  color: #ffa502;
+  background: rgba(255, 165, 2, 0.2);
+  font-weight: 500;
+}
+
+.action-cell.sedatives {
+  color: #2ed573;
+  background: rgba(46, 213, 115, 0.15);
+  font-weight: 500;
+}
+
+.action-cell.immune {
+  color: #7bed9f;
+  background: rgba(46, 213, 115, 0.2);
+  font-weight: 600;
+}
+
+.action-cell.special-event {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.action-cell.special-info {
+  color: #00d9ff;
+  font-weight: 600;
+}
+
+.action-cell.spotlight-found {
+  color: #ffd32a;
+  background: rgba(255, 211, 42, 0.3);
+  font-weight: 700;
+  font-family: 'Consolas', monospace;
+}
+
+.action-cell.sensor-found {
+  color: #00d9ff;
+  background: rgba(0, 217, 255, 0.3);
+  font-weight: 700;
+  font-family: 'Consolas', monospace;
+}
+
+.action-cell.reveal-result {
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.action-cell.reveal-result[data-role="human"] {
+  color: #00d9ff;
+  background: rgba(0, 217, 255, 0.2);
+}
+
+.action-cell.reveal-result[data-role="alien"] {
+  color: #e94560;
+  background: rgba(233, 69, 96, 0.2);
+}
+
 /* Future turns */
 tr.future-turn {
   opacity: 0.3;

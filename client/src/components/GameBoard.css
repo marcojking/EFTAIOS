@@ -472,6 +472,91 @@
   font-weight: 600;
 }
 
+/* FlipCard-based Escape Choice Modal */
+.escape-cards-flip {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.escape-card-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.escape-flip-card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.escape-card-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.escape-card-badge.working {
+  background: rgba(46, 213, 115, 0.95);
+  color: white;
+}
+
+.escape-card-badge.damaged {
+  background: rgba(233, 69, 96, 0.95);
+  color: white;
+}
+
+.escape-choose-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.escape-choose-btn.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.escape-choose-btn.working {
+  background: linear-gradient(135deg, #2ed573 0%, #26b560 100%);
+  border: none;
+  color: white;
+}
+
+.escape-choose-btn.working:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3ee584 0%, #2ed573 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(46, 213, 115, 0.4);
+}
+
+.escape-choose-btn.damaged {
+  background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+  border: none;
+  color: white;
+}
+
+.escape-choose-btn.damaged:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff5a75 0%, #e94560 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+}
+
+.escape-choose-btn:disabled {
+  cursor: not-allowed;
+}
+
 /* Lurking Attack Button */
 .action-btn.lurking {
   background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
@@ -685,6 +770,11 @@
   .escape-cards {
     flex-direction: column;
     gap: 12px;
+  }
+
+  .escape-cards-flip {
+    flex-direction: column;
+    gap: 20px;
   }
 
   .escape-card-btn {

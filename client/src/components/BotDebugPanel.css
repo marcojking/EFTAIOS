@@ -1,0 +1,396 @@
+.bot-debug-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 165, 2, 0.3);
+  border-radius: 8px;
+  z-index: 1000;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.bot-debug-panel.collapsed {
+  max-height: 40px;
+}
+
+.bot-debug-panel.expanded {
+  min-width: 350px;
+}
+
+.debug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: rgba(255, 165, 2, 0.1);
+  border-bottom: 1px solid rgba(255, 165, 2, 0.2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.debug-header:hover {
+  background: rgba(255, 165, 2, 0.15);
+}
+
+.debug-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffa502;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.debug-toggle {
+  color: #ffa502;
+  font-size: 0.8rem;
+}
+
+.debug-content {
+  max-height: calc(80vh - 50px);
+  overflow-y: auto;
+}
+
+/* Bot tabs */
+.bot-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bot-tab {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bot-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.bot-tab.active {
+  background: rgba(255, 165, 2, 0.2);
+  border-color: #ffa502;
+  color: #ffa502;
+}
+
+.bot-tab.dead {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.role-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.role-indicator.human {
+  background: #00d9ff;
+}
+
+.role-indicator.alien {
+  background: #e94560;
+}
+
+/* Bot details */
+.bot-details {
+  padding: 10px;
+}
+
+.debug-section {
+  margin-bottom: 15px;
+}
+
+.debug-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Personality grid */
+.personality-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.personality-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stat-label {
+  min-width: 100px;
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.stat-bar-container {
+  flex: 1;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ffa502 0%, #ff6348 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.stat-value {
+  font-size: 0.7rem;
+  color: #fff;
+  font-weight: 600;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.stat-value.text {
+  position: static;
+  transform: none;
+  color: #ffa502;
+  font-size: 0.75rem;
+}
+
+/* Current thought */
+.current-thought {
+  padding: 10px;
+  background: rgba(255, 165, 2, 0.1);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #ffa502;
+  font-family: 'Consolas', monospace;
+}
+
+/* Beliefs list */
+.beliefs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.belief-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+.belief-name {
+  min-width: 60px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.belief-role {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.belief-role.human {
+  background: rgba(0, 217, 255, 0.2);
+  color: #00d9ff;
+}
+
+.belief-role.alien {
+  background: rgba(233, 69, 96, 0.2);
+  color: #e94560;
+}
+
+.belief-location {
+  color: #888;
+  font-family: 'Consolas', monospace;
+}
+
+.belief-status {
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+.belief-status.escaped {
+  background: rgba(46, 213, 115, 0.2);
+  color: #2ed573;
+}
+
+.belief-status.dead {
+  background: rgba(255, 71, 87, 0.2);
+  color: #ff4757;
+}
+
+.belief-status.mutated {
+  background: rgba(165, 94, 234, 0.2);
+  color: #a55eea;
+}
+
+/* Decision log */
+.decision-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.decision-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.decision-turn {
+  min-width: 25px;
+  color: #666;
+  font-weight: 600;
+}
+
+.decision-action {
+  min-width: 50px;
+  color: #ffa502;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+}
+
+.decision-reason {
+  flex: 1;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Debug log */
+.debug-log {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  font-family: 'Consolas', monospace;
+  font-size: 0.65rem;
+}
+
+.log-line {
+  color: #666;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.log-line:last-child {
+  border-bottom: none;
+}
+
+/* Summary view */
+.debug-summary {
+  padding: 10px;
+}
+
+.summary-hint {
+  text-align: center;
+  color: #666;
+  font-size: 0.75rem;
+  font-style: italic;
+  margin: 0 0 10px 0;
+}
+
+.summary-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-card {
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  border-left: 3px solid #ffa502;
+}
+
+.summary-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.summary-thought {
+  font-size: 0.7rem;
+  color: #888;
+  font-family: 'Consolas', monospace;
+}
+
+/* Scrollbar */
+.debug-content::-webkit-scrollbar,
+.decision-log::-webkit-scrollbar,
+.debug-log::-webkit-scrollbar {
+  width: 6px;
+}
+
+.debug-content::-webkit-scrollbar-track,
+.decision-log::-webkit-scrollbar-track,
+.debug-log::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.debug-content::-webkit-scrollbar-thumb,
+.decision-log::-webkit-scrollbar-thumb,
+.debug-log::-webkit-scrollbar-thumb {
+  background: rgba(255, 165, 2, 0.3);
+  border-radius: 3px;
+}
+
+.debug-content::-webkit-scrollbar-thumb:hover,
+.decision-log::-webkit-scrollbar-thumb:hover,
+.debug-log::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 165, 2, 0.5);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .bot-debug-panel {
+    left: 10px;
+    right: 10px;
+    max-width: none;
+    bottom: 10px;
+  }
+
+  .bot-debug-panel.expanded {
+    min-width: auto;
+  }
+}

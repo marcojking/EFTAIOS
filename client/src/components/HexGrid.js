@@ -246,7 +246,7 @@ function HexGrid({
       ? players?.filter(p => p.position === hex.label && p.alive && !p.escaped) || []
       : [];
 
-    const isHighlighted = highlightMode === 'noise-select' || highlightMode === 'ghost-select';
+    const isHighlighted = highlightMode === 'noise-select' || highlightMode === 'ghost-select' || highlightMode === 'item-target';
     const isSelecting = selectedGhostPlayer !== null;
 
     // Movement/Attack highlighting

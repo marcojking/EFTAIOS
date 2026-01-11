@@ -8,6 +8,9 @@ import LogToast from './LogToast';
 import TimelineControls from './TimelineControls';
 import TutorialOverlay from './TutorialOverlay';
 import AIFeedback from './AIFeedback';
+import FlipCard from './FlipCard';
+import BotDebugPanel from './BotDebugPanel';
+import { getEscapeHatchImagePath, ESCAPE_HATCH_CARDS } from '../config/characterArt';
 import { getReachableSectors } from '../utils/mapUtils';
 import './GameBoard.css';
 
@@ -154,8 +157,8 @@ function GameBoard({
   }, [isResizing, resize, stopResizing]);
 
   const myPlayer = gameState?.myPlayer;
-  // Host is never "playing" - they're spectating
-  const isMyTurn = !isHost && gameState?.currentPlayerId === clientId;
+  // Host can also be a player if isHostPlayer is true
+  const isMyTurn = (!isHost || isHostPlayer) && gameState?.currentPlayerId === clientId;
   const currentTurnPlayer = gameState?.players?.find(p => p.id === gameState.currentPlayerId);
 
   // Derive pending states from gameState.pendingAction (from server)
@@ -590,7 +593,7 @@ function GameBoard({
             </div>
             <PlayerHUD
               player={myPlayer}
-              isHost={isHost}
+              isSpectator={isSpectator}
               gameState={gameState}
               onUseItem={handleItemUse}
               onUsePower={handlePowerUse}
@@ -602,11 +605,11 @@ function GameBoard({
           {/* Center: Hex Grid Map */}
           <div className="game-center">
             {/* PROMINENT Turn Indicator */}
-            <div className={`turn-indicator ${isMyTurn ? 'my-turn' : ''} ${isHost ? 'host-view' : ''}`}>
+            <div className={`turn-indicator ${isMyTurn ? 'my-turn' : ''} ${isSpectator ? 'host-view' : ''}`}>
               <span className="turn-number">Turn {gameState.currentTurn} / {gameState.maxTurns}</span>
               <span className={`current-player ${isMyTurn ? 'highlight' : ''}`}>
-                {isHost
-                  ? `👁️ HOST VIEW - ${currentTurnPlayer?.name}'s Turn`
+                {isSpectator
+                  ? `👁️ SPECTATOR VIEW - ${currentTurnPlayer?.name}'s Turn`
                   : (!myPlayer?.alive || myPlayer?.escaped)
                     ? `👻 SPECTATOR MODE - ${currentTurnPlayer?.name}'s Turn`
                     : (isMyTurn ? "🎯 YOUR TURN" : `⏳ ${currentTurnPlayer?.name}'s Turn`)
@@ -744,6 +747,14 @@ function GameBoard({
       {/* Floating Log Toasts */}
       <LogToast announcements={gameState.announcements} />
 
+      {/* Bot Debug Panel (Host only) */}
+      {isHost && gameState.botDebugInfo && (
+        <BotDebugPanel
+          botDebugInfo={gameState.botDebugInfo}
+          players={gameState.players}
+        />
+      )}
+
       {/* Tutorial Overlay for new players */}
       {myPlayer?.tutorialMode && gameState?.tutorialHints && isMyTurn && (
         <TutorialOverlay
@@ -842,27 +853,72 @@ function GameBoard({
 
       {/* Escape Card Choice Modal for Engineer */}
       {serverPendingEscapeChoice && (
-        <div className="escape-choice-overlay">
-          <div className="escape-choice-modal">
-            <h3>Choose Escape Card (Engineer Power)</h3>
-            <p>You drew two cards. Choose which one to use:</p>
-            <div className="escape-cards">
-              {serverPendingEscapeChoice.cards.map((card, index) => (
-                <button
-                  key={index}
-                  className={`escape-card-btn ${card.type === 'GREEN' ? 'working' : 'damaged'}`}
-                  onClick={() => onChooseEscapeCard(index)}
-                >
-                  <span className="card-icon">{card.type === 'GREEN' ? '✓' : '✗'}</span>
-                  <span className="card-label">
-                    {card.type === 'GREEN' ? 'Working' : 'Damaged'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <EscapeChoiceModal
+          cards={serverPendingEscapeChoice.cards}
+          onChooseCard={onChooseEscapeCard}
+        />
       )}
+    </div>
+  );
+}
+
+// Escape Choice Modal Component with FlipCard animations
+function EscapeChoiceModal({ cards, onChooseCard }) {
+  const [flippedCards, setFlippedCards] = useState([false, false]);
+  const [showButtons, setShowButtons] = useState(false);
+
+  // Auto-flip cards with staggered timing
+  React.useEffect(() => {
+    const timer1 = setTimeout(() => {
+      setFlippedCards([true, false]);
+    }, 500);
+
+    const timer2 = setTimeout(() => {
+      setFlippedCards([true, true]);
+    }, 800);
+
+    const timer3 = setTimeout(() => {
+      setShowButtons(true);
+    }, 1400);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, []);
+
+  return (
+    <div className="escape-choice-overlay">
+      <div className="escape-choice-modal">
+        <h3>Choose Escape Card (Engineer Power)</h3>
+        <p>You drew two cards. Choose which one to use:</p>
+        <div className="escape-cards-flip">
+          {cards.map((card, index) => (
+            <div key={index} className="escape-card-container">
+              <FlipCard
+                frontImage={getEscapeHatchImagePath(card.type)}
+                backImage={ESCAPE_HATCH_CARDS.BACK}
+                isFlipped={flippedCards[index]}
+                width={160}
+                height={224}
+                className={`escape-flip-card ${card.type === 'GREEN' ? 'working' : 'damaged'}`}
+              >
+                <div className={`escape-card-badge ${card.type === 'GREEN' ? 'working' : 'damaged'}`}>
+                  {card.type === 'GREEN' ? 'WORKING' : 'DAMAGED'}
+                </div>
+              </FlipCard>
+              <button
+                className={`escape-choose-btn ${showButtons ? 'visible' : ''} ${card.type === 'GREEN' ? 'working' : 'damaged'}`}
+                onClick={() => onChooseCard(index)}
+                disabled={!showButtons}
+              >
+                {card.type === 'GREEN' ? 'Use This (Escape!)' : 'Use This (Fail)'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
