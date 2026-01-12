@@ -281,25 +281,36 @@ class BotPlanner {
         }
 
         // === FIND ATTACK TARGET (IMPROVED) ===
-        // Much LOWER threshold, especially near hatches and late game
+        // Start with a LOW threshold - aliens should be aggressive hunters
+        // Base threshold from personality is typically 0.3-0.5
         let baseThreshold = getAttackThreshold(this.personality, turn);
 
-        // Early game: be more cautious - humans are still near spawn
-        // Give humans a chance to spread out before hunting aggressively
-        if (turn <= 3) {
-            baseThreshold += 0.2; // Higher threshold = less aggressive
-        } else if (turn <= 6) {
+        // Early game (turns 1-2): be slightly cautious
+        if (turn <= 2) {
             baseThreshold += 0.1;
         }
 
-        // Late game: be more aggressive
+        // Mid-game and beyond: be aggressive!
+        if (turn > 4) {
+            baseThreshold = Math.max(0.15, baseThreshold - 0.1);
+        }
+
+        // Late game: very aggressive
         if (turnsRemaining <= 10) {
             baseThreshold = Math.max(0.1, baseThreshold - 0.15);
         }
 
-        // First kill bonus: be more aggressive to get fed status (but not early game)
-        if (!isFed && turn > 5) {
+        // First kill bonus: be more aggressive to get fed status
+        if (!isFed && turn > 3) {
             baseThreshold = Math.max(0.15, baseThreshold - 0.1);
+        }
+
+        // LOW INFORMATION = HIGH AGGRESSION
+        // If there's little noise info, humans are moving silently
+        // The only way to find them is to attack speculatively
+        if (recentNoises.length <= 2) {
+            baseThreshold = Math.max(0.15, baseThreshold - 0.15);
+            this.log(`Low info mode: threshold reduced to ${(baseThreshold * 100).toFixed(0)}%`);
         }
 
         let bestAttackTarget = null;
@@ -337,6 +348,12 @@ class BotPlanner {
                 this.log(`Hatch ${sector}: base ${(humanProb * 100).toFixed(0)}% + 25% hatch bonus`);
             }
 
+            // Bonus for sectors ADJACENT to hatches (ambush position)
+            const adjacentToHatch = hatches.some(h => this.isAdjacent(sector, h));
+            if (adjacentToHatch && turn > 5) {
+                attackScore += 0.15;
+            }
+
             // Bonus for sectors near recent noise (chase behavior)
             const nearRecentNoise = recentNoises.some(n =>
                 this.isAdjacent(sector, n.sector) || sector === n.sector
@@ -348,6 +365,22 @@ class BotPlanner {
             // Bonus for human hotspots
             if (hotspotSectors.includes(sector)) {
                 attackScore += 0.1;
+            }
+
+            // LOW INFORMATION ATTACK: When there's little noise info,
+            // be willing to attack sectors on the likely path to hatches
+            if (recentNoises.length <= 2 && turn > 4) {
+                // Calculate if this sector is on a likely human path
+                const analysis = this.mapAnalyzer.getAnalysis();
+                const humanStart = analysis.humanStart;
+                const distFromHumanStart = this.mapAnalyzer.computeDistance(sector, humanStart);
+                const expectedHumanProgress = turn * 0.8; // Humans move ~0.8 sectors per turn on average
+
+                // If sector is roughly where humans should be by now, boost attack score
+                if (distFromHumanStart >= expectedHumanProgress - 2 &&
+                    distFromHumanStart <= expectedHumanProgress + 2) {
+                    attackScore += 0.1;
+                }
             }
 
             // Additional penalty for confirmed alien sectors
@@ -405,8 +438,9 @@ class BotPlanner {
      *
      * Key improvements:
      * - Chase behavior toward recent noise
-     * - Prioritize human hotspots
+     * - Prioritize human hotspots STRONGLY
      * - Better hatch camping
+     * - Weight recent noise higher than old noise
      */
     planPatrolMove(gameState, tracker, myPlayer, reachable, hatches, huntingStrategy, suspectedAlienSectors, recentNoises = [], hotspotSectors = []) {
         let bestMove = null;
@@ -417,34 +451,49 @@ class BotPlanner {
         const patrolZones = analysis.patrolZones || [];
         const turn = gameState.currentTurn || 1;
 
+        // Get the top 3 human hotspots with their probabilities
+        const humanHotspots = tracker.getHumanHotspots ? tracker.getHumanHotspots(5) : [];
+        const topHotspotSectors = humanHotspots.slice(0, 3).map(h => h.sector);
+
         reachable.forEach(move => {
             const sector = move.sector;
             let score = 0;
 
-            // 1. Human probability at this sector (from particle filter)
+            // 1. Human probability at this sector (from particle filter) - INCREASED weight
             const humanProb = tracker.getHumanProbability(sector);
-            score += humanProb * 15;
+            score += humanProb * 25; // Increased from 15
 
             // 2. CHASE BEHAVIOR: Move toward recent noise declarations
-            const nearRecentNoise = recentNoises.some(n =>
-                this.isAdjacent(sector, n.sector) || sector === n.sector
-            );
-            if (nearRecentNoise) {
-                score += 8; // Strong bonus for chasing noise
-            }
+            // Weight more recent noise higher
+            recentNoises.forEach((noise, idx) => {
+                const recency = recentNoises.length - idx; // Higher for more recent
+                const isNear = this.isAdjacent(sector, noise.sector) || sector === noise.sector;
+                if (isNear) {
+                    score += 3 * recency; // Recent noise: +12, older noise: +3
+                }
+            });
 
-            // Also bonus for being adjacent to noise sectors
-            const adjacentToNoise = recentNoises.some(n => this.isAdjacent(sector, n.sector));
-            if (adjacentToNoise && !nearRecentNoise) {
+            // 3. Human hotspot bonus - STRONG bonus for top hotspots
+            if (topHotspotSectors.includes(sector)) {
+                const hotspotRank = topHotspotSectors.indexOf(sector);
+                score += 12 - (hotspotRank * 3); // +12 for top, +9 for 2nd, +6 for 3rd
+            } else if (hotspotSectors.includes(sector)) {
                 score += 4;
             }
 
-            // 3. Human hotspot bonus
-            if (hotspotSectors.includes(sector)) {
-                score += 6;
+            // 4. MOVE TOWARD hotspots even if we can't reach them
+            // This helps aliens correct course when they're going the wrong way
+            const closestHotspot = humanHotspots[0];
+            if (closestHotspot) {
+                const distToHotspot = this.mapAnalyzer.computeDistance(sector, closestHotspot.sector);
+                const currentDistToHotspot = this.mapAnalyzer.computeDistance(myPlayer.position, closestHotspot.sector);
+                const progressToHotspot = currentDistToHotspot - distToHotspot;
+                if (progressToHotspot > 0) {
+                    score += progressToHotspot * 5 * closestHotspot.probability; // Bonus for moving toward hotspot
+                }
             }
 
-            // 4. Hunting style bonuses
+            // 5. Hunting style bonuses
             if (huntingStrategy.prioritizeHatches) {
                 // STRONG bonus for being at or adjacent to hatches
                 if (hatches.includes(sector)) {
@@ -469,18 +518,18 @@ class BotPlanner {
                 }
             }
 
-            // 5. Avoid other aliens (prevent friendly fire)
+            // 6. Avoid other aliens (prevent friendly fire)
             if (suspectedAlienSectors.includes(sector)) {
                 score -= 15;
             }
 
-            // 6. Prefer dangerous sectors (more likely to catch humans making noise)
+            // 7. Prefer dangerous sectors (more likely to catch humans making noise)
             const sectorData = this.map.grid.find(h => h.label === sector);
             if (sectorData?.state === 'dangerous') {
                 score += 1;
             }
 
-            // 7. Personality variance (adds unpredictability)
+            // 8. Personality variance (adds unpredictability)
             score += (this.rng.random() - 0.5) * 3 * this.personality.patrolPreference;
 
             if (score > maxScore) {
@@ -493,12 +542,12 @@ class BotPlanner {
 
         // Determine reason based on what influenced the decision
         let reason = 'Hunting patrol';
-        if (recentNoises.length > 0 && recentNoises.some(n => this.isAdjacent(bestMove, n.sector) || bestMove === n.sector)) {
+        if (topHotspotSectors.includes(bestMove)) {
+            reason = 'Tracking hotspot';
+        } else if (recentNoises.length > 0 && recentNoises.some(n => this.isAdjacent(bestMove, n.sector) || bestMove === n.sector)) {
             reason = 'Chasing noise';
         } else if (hatches.includes(bestMove) || hatches.some(h => this.isAdjacent(bestMove, h))) {
             reason = 'Hatch patrol';
-        } else if (hotspotSectors.includes(bestMove)) {
-            reason = 'Tracking hotspot';
         }
 
         this.log(`Patrol: ${bestMove} (score: ${maxScore.toFixed(1)}, reason: ${reason})`);
@@ -700,19 +749,28 @@ class BotPlanner {
      * Deception Strategy for Noise in Any Sector
      */
     planDeception(gameState, myPlayer) {
-        const allSectors = this.map.grid.filter(h => h.state !== 'empty').map(h => h.label);
         const myPos = myPlayer.position;
         const hatches = this.getAvailableHatches(gameState);
 
-        // Get sectors that are actually reachable (for believability)
+        // IMPORTANT: You can only make noise in DANGEROUS sectors!
+        // Get all dangerous sectors that are reachable (for believability)
         const reachable = getReachableSectors(this.map, myPos, myPlayer.moveSpeed || 1, myPlayer.role);
-        const reachableSectors = reachable.map(r => r.sector);
 
-        // Filter to only plausible sectors
-        const plausibleSectors = reachableSectors.filter(s => s !== myPos);
+        // Filter to only DANGEROUS sectors (where noise is actually possible)
+        const dangerousSectors = reachable
+            .map(r => r.sector)
+            .filter(s => {
+                const sectorData = this.map.grid.find(h => h.label === s);
+                return sectorData?.state === 'dangerous';
+            });
+
+        // Filter to only plausible sectors (not current position)
+        const plausibleSectors = dangerousSectors.filter(s => s !== myPos);
 
         if (plausibleSectors.length === 0) {
-            return myPos; // No options, tell truth
+            // No valid deception options - tell truth (current position if dangerous)
+            const currentSector = this.map.grid.find(h => h.label === myPos);
+            return currentSector?.state === 'dangerous' ? myPos : myPos;
         }
 
         const strategy = getDeceptionStrategy(this.personality, myPlayer.role);

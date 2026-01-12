@@ -9,11 +9,11 @@ const GameState = require('../game/GameState');
 const { BotPlayer } = require('../game/AIPlayer');
 const { generatePersonality } = require('../game/ai/BotPersonality');
 
-// Load a map
+// Load a map - Only Fermi, Morgenland, and Levi-Montalcini are working maps
 const maps = require('../../client/src/data/maps.js');
-const GALATEA_MAP = maps.GALATEA_MAP;
+const GAME_MAP = maps.FERMI_MAP;
 
-if (!GALATEA_MAP) {
+if (!GAME_MAP) {
     console.error('Could not load map. Available exports:', Object.keys(maps));
     process.exit(1);
 }
@@ -39,10 +39,10 @@ players.forEach(p => {
 });
 
 // Start the game
-gameState.startGame(GALATEA_MAP);
+gameState.startGame(GAME_MAP);
 
 console.log('Game started with', gameState.players.length, 'players');
-console.log('Map:', GALATEA_MAP.name);
+console.log('Map:', GAME_MAP.name);
 console.log('Max turns:', gameState.maxTurns);
 console.log('\nPlayer assignments:');
 gameState.players.forEach(p => {
@@ -72,8 +72,8 @@ const stats = {
     issues: []
 };
 
-// Simulate game turns
-const MAX_TURNS_TO_SIMULATE = 20;
+// Simulate game turns (full game is 39 turns max)
+const MAX_TURNS_TO_SIMULATE = 50;
 
 for (let simTurn = 0; simTurn < MAX_TURNS_TO_SIMULATE && gameState.phase === 'playing'; simTurn++) {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -154,6 +154,31 @@ for (let simTurn = 0; simTurn < MAX_TURNS_TO_SIMULATE && gameState.phase === 'pl
                 }
             }
             // Spotlight/Sensor complete the turn
+        }
+    } else if (decision.action === 'use_power') {
+        // Handle character power usage
+        console.log(`    USING POWER: ${decision.power || 'unknown'} (${decision.reason})`);
+        const powerResult = gameState.usePower(currentPlayer.id, decision.power, decision.target);
+        if (!powerResult.success) {
+            console.log(`    Power use FAILED: ${powerResult.error}`);
+            // Fall back to a regular move
+            const moveDecision = bot.decideMove(gameState);
+            if (moveDecision.action === 'move' && moveDecision.target) {
+                result = gameState.movePlayer(currentPlayer.id, moveDecision.target);
+            } else {
+                gameState.endTurn();
+                continue;
+            }
+        } else {
+            console.log(`    Power used successfully`);
+            // Some powers end the turn, others require follow-up
+            if (gameState.pendingAction) {
+                // Power needs follow-up action
+            } else if (powerResult.requiresMove === false || decision.power === 'stay_still') {
+                // Power completes the turn
+                gameState.endTurn();
+                continue;
+            }
         }
     } else {
         console.log(`    NO ACTION (${decision.action})`);
