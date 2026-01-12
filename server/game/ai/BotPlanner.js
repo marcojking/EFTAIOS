@@ -144,11 +144,15 @@ class BotPlanner {
             const sector = move.sector;
             let score = 100; // Base score (higher is better)
 
-            // 1. Distance to nearest escape hatch (progress toward goal)
+            // 1. Distance to nearest escape hatch (progress toward goal) - PRIMARY GOAL
             const distToHatch = this.mapAnalyzer.getDistanceToNearestHatch(sector, hatches);
             const currentDist = this.mapAnalyzer.getDistanceToNearestHatch(myPlayer.position, hatches);
-            const progressBonus = (currentDist - distToHatch) * 10; // +10 per step closer
+            const progressBonus = (currentDist - distToHatch) * 20; // +20 per step closer (doubled!)
             score += progressBonus;
+
+            // Strong bonus for being close to hatches
+            if (distToHatch <= 2) score += 15;
+            if (distToHatch <= 1) score += 20;
 
             // 2. Alien risk at sector (MAJOR factor)
             const alienRisk = tracker.getAlienProbability(sector);
@@ -280,13 +284,21 @@ class BotPlanner {
         // Much LOWER threshold, especially near hatches and late game
         let baseThreshold = getAttackThreshold(this.personality, turn);
 
+        // Early game: be more cautious - humans are still near spawn
+        // Give humans a chance to spread out before hunting aggressively
+        if (turn <= 3) {
+            baseThreshold += 0.2; // Higher threshold = less aggressive
+        } else if (turn <= 6) {
+            baseThreshold += 0.1;
+        }
+
         // Late game: be more aggressive
         if (turnsRemaining <= 10) {
             baseThreshold = Math.max(0.1, baseThreshold - 0.15);
         }
 
-        // First kill bonus: be more aggressive to get fed status
-        if (!isFed) {
+        // First kill bonus: be more aggressive to get fed status (but not early game)
+        if (!isFed && turn > 5) {
             baseThreshold = Math.max(0.15, baseThreshold - 0.1);
         }
 
@@ -301,8 +313,22 @@ class BotPlanner {
             // Avoid sectors where we just attacked (empty)
             if (tracker.confirmedEmptySectors.has(sector)) return;
 
-            // Calculate attack score (not just probability)
-            let attackScore = humanProb;
+            // STRONG friendly fire avoidance - skip if alien probability is significant
+            // Aliens don't want to kill their own team!
+            if (alienProb > 0.25) {
+                this.log(`Skipping ${sector}: alien probability ${(alienProb * 100).toFixed(0)}%`);
+                return;
+            }
+
+            // Only attack if human probability significantly exceeds alien probability
+            // Need at least 2:1 ratio of human:alien probability
+            if (humanProb < alienProb * 2) {
+                return;
+            }
+
+            // Calculate attack score based on NET probability (human - alien)
+            // This ensures we prefer targets that are likely human, not alien
+            let attackScore = humanProb - alienProb;
 
             // BIG bonus for hatch sectors (humans must go there eventually)
             const isHatch = hatches.includes(sector);
@@ -324,9 +350,9 @@ class BotPlanner {
                 attackScore += 0.1;
             }
 
-            // Penalty for friendly fire risk
+            // Additional penalty for confirmed alien sectors
             if (suspectedAlienSectors.includes(sector)) {
-                attackScore -= alienProb * 0.5;
+                attackScore -= 0.3;
             }
 
             // Track best target
@@ -336,6 +362,7 @@ class BotPlanner {
                     sector,
                     score: attackScore,
                     humanProb,
+                    alienProb,
                     isHatch,
                     nearNoise: nearRecentNoise
                 };
