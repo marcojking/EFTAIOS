@@ -93,51 +93,63 @@ async function executeBotTurn(gameState, player, botInstance, roomCode) {
   const isHuman = player.role === 'human';
   console.log(`[BOT] executeBotTurn for ${player.name}, role: ${player.role}, position: ${player.position}`);
 
-  // Check for escape hatch opportunity (humans only)
-  if (isHuman) {
-    const escapeMove = findEscapeOpportunity(gameState, player);
-    if (escapeMove) {
-      console.log(`[BOT] Human bot attempting escape to ${escapeMove}`);
-      const result = gameState.movePlayer(player.id, escapeMove);
-      return { action: 'escape_attempt', result };
-    }
-  }
+  // Let BotPlanner make ALL decisions - it has the smart logic!
+  // Only use adrenaline if planner recommends it (future enhancement)
 
-  // Check if should use item before moving (e.g., Adrenaline)
-  if (isHuman && player.items && player.items.length > 0) {
-    const adrenalineItem = player.items.find(i => i.type === 'ADRENALINE');
-    if (adrenalineItem && shouldUseAdrenaline(gameState, player)) {
-      console.log(`[BOT] Using adrenaline`);
-      gameState.useItem(player.id, adrenalineItem.id, null);
-    }
-  }
-
-  // Decide move using bot heuristics
+  // Get the smart decision from BotPlanner
   const decision = botInstance.decideMove(gameState);
   console.log(`[BOT] Move decision:`, decision);
 
-  if (decision.action === 'move' && decision.target) {
-    // Check if alien should attack
-    if (!isHuman) {
-      const attackDecision = botInstance.decideAttack(gameState);
-      if (attackDecision.action === 'attack') {
-        console.log(`[BOT] Alien attacking at ${decision.target}`);
-        const result = gameState.moveAndAttack(player.id, decision.target);
-        return { action: 'move_and_attack', result };
-      }
-    }
+  // Handle ATTACK decisions (alien wants to move and attack)
+  if (decision.action === 'move_and_attack' && decision.target) {
+    console.log(`[BOT] Alien attacking at ${decision.target} (${decision.reason})`);
+    const result = gameState.moveAndAttack(player.id, decision.target);
+    return { action: 'move_and_attack', target: decision.target, result };
+  }
 
-    // Normal move
-    console.log(`[BOT] Moving to ${decision.target}`);
+  // Handle MOVE decisions
+  if (decision.action === 'move' && decision.target) {
+    console.log(`[BOT] Moving to ${decision.target} (${decision.reason})`);
     const result = gameState.movePlayer(player.id, decision.target);
     return { action: 'move', target: decision.target, result };
   }
 
-  // Lurking Alien can attack in place
+  // Handle ATTACK IN PLACE (Lurking Alien power)
+  if (decision.action === 'attack_in_place') {
+    console.log(`[BOT] Lurking alien attacking in place`);
+    const result = gameState.attackInPlace(player.id);
+    return { action: 'attack_in_place', result };
+  }
+
+  // Handle ITEM USAGE decisions
+  if (decision.action === 'use_item' && decision.item) {
+    console.log(`[BOT] Using item: ${decision.item.type} (${decision.reason})`);
+    const itemResult = gameState.useItem(player.id, decision.item.id, decision.target);
+
+    if (!itemResult.success) {
+      console.log(`[BOT] Item use failed: ${itemResult.error}`);
+      // Fall through to normal movement
+    } else {
+      // After using Sedatives, bot still needs to move
+      if (decision.item.type === 'SEDATIVES') {
+        // Get another movement decision (the sedatives effect will prevent card draw)
+        const moveDecision = botInstance.decideMove(gameState);
+        if (moveDecision.action === 'move' && moveDecision.target) {
+          console.log(`[BOT] Moving silently to ${moveDecision.target}`);
+          const moveResult = gameState.movePlayer(player.id, moveDecision.target);
+          return { action: 'use_item_and_move', item: decision.item.type, target: moveDecision.target, result: moveResult };
+        }
+      }
+      // Other items (Spotlight, Sensor) complete the turn
+      return { action: 'use_item', item: decision.item.type, target: decision.target, result: itemResult };
+    }
+  }
+
+  // Fallback: Lurking Alien can attack in place even if planner didn't suggest it
   if (!isHuman && player.character?.power?.canAttackWithoutMoving) {
     const attackDecision = botInstance.decideAttack(gameState);
     if (attackDecision.action === 'attack') {
-      console.log(`[BOT] Lurking alien attacking in place`);
+      console.log(`[BOT] Lurking alien attacking in place (fallback)`);
       const result = gameState.attackInPlace(player.id);
       return { action: 'attack_in_place', result };
     }
@@ -344,6 +356,7 @@ function getPlayerView(gameState, playerId) {
       tutorialMode: p.tutorialMode || false // Include tutorial mode status for all players
     })),
     // Filter announcements based on visibility and reveal toggle
+    // Also sanitize private fields (noiseType) for other players
     announcements: gameState.announcements.filter(a => {
       // Spectators see everything
       if (isSpectator) return true;
@@ -374,6 +387,19 @@ function getPlayerView(gameState, playerId) {
 
       // Default: hide spectator_only from players
       return a.visibility !== 'spectator_only';
+    }).map(a => {
+      // Sanitize private fields in NOISE announcements
+      // Only the player who made the announcement sees the true noiseType
+      if (a.type === 'NOISE' && a.noiseType) {
+        if (a.playerId === playerId || isSpectator) {
+          // Player who drew the card or spectators see the true noiseType
+          return a;
+        } else {
+          // Other players see noiseType as UNKNOWN
+          return { ...a, noiseType: 'UNKNOWN' };
+        }
+      }
+      return a;
     }),
     escapeHatchStatus: gameState.escapeHatchStatus,
     activeEffects: gameState.activeEffects || {}, // Include active effects (adrenaline, sedatives) for client-side highlighting

@@ -1009,11 +1009,24 @@ class GameState {
         message: `${player.name} — Silence in all sectors`
       });
     } else {
+      // Determine noiseType from the card that was drawn
+      // Maps card.type to noiseType: YOUR_SECTOR means truth, ANY_SECTOR means could be a lie
+      const cardType = this.pendingAction.card?.type;
+      let noiseType = 'UNKNOWN';
+      if (cardType === 'NOISE_YOUR_SECTOR') {
+        noiseType = 'YOUR_SECTOR';
+      } else if (cardType === 'NOISE_ANY_SECTOR') {
+        noiseType = 'ANY_SECTOR';
+      }
+
       this.addAnnouncement({
         type: 'NOISE',
         playerId: player.id,
         playerName: player.name,
         sector: sector,
+        // Private field: only visible to the player who drew the card
+        // Other players see this stripped/set to UNKNOWN via getPlayerView
+        noiseType: noiseType,
         message: `${player.name} — Noise in ${sector}`
       });
     }

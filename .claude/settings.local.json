@@ -29,7 +29,18 @@
       "mcp__playwright__browser_console_messages",
       "Bash(powershell \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "mcp__playwright__browser_navigate",
-      "mcp__playwright__browser_close"
+      "mcp__playwright__browser_close",
+      "WebFetch(domain:theboardgameshow.com)",
+      "WebFetch(domain:www.slashfilm.com)",
+      "WebFetch(domain:littleboardgamers.com)",
+      "WebFetch(domain:www.jestatharogue.com)",
+      "Bash(node:*)",
+      "Bash(timeout 5 node:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(cmd //c \"taskkill /F /PID 18864 & taskkill /F /PID 58540\")",
+      "Bash(for i in 1 2 3)",
+      "Bash(do echo \"=== Run $i ===\")",
+      "Bash(done)"
     ]
   }
 }

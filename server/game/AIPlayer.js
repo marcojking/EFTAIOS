@@ -7,11 +7,16 @@ const { generatePersonality } = require('./ai/BotPersonality');
  *
  * Integrates BotTracker (state estimation) and BotPlanner (strategy)
  * with personality-based decision making and debug logging.
+ *
+ * Uses seeded RNG for deterministic yet varied behavior.
  */
 class BotPlayer {
-    constructor(playerId, personality = null) {
+    constructor(playerId, personality = null, seed = null) {
         this.playerId = playerId;
         this.personality = personality || generatePersonality();
+
+        // Seed for deterministic behavior (derived from playerId if not provided)
+        this.seed = seed || this._generateSeed(playerId);
 
         // Modules initialized on first move (require map/gameState access)
         this.tracker = null;
@@ -27,21 +32,36 @@ class BotPlayer {
     }
 
     /**
+     * Generate a deterministic seed from player ID
+     */
+    _generateSeed(playerId) {
+        let hash = 0;
+        for (let i = 0; i < playerId.length; i++) {
+            const char = playerId.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash);
+    }
+
+    /**
      * Initialize modules when game starts
      */
     _init(gameState) {
         if (!this.tracker) {
-            console.log(`[BotPlayer] Initializing for ${this.playerId}`);
+            console.log(`[BotPlayer] Initializing for ${this.playerId} with seed ${this.seed}`);
             this.tracker = new BotTracker(
                 this.playerId,
                 gameState.map,
                 gameState.players,
-                gameState.settings
+                gameState.settings,
+                this.seed
             );
             this.planner = new BotPlanner(
                 this.playerId,
                 gameState.map,
-                this.personality
+                this.personality,
+                this.seed + 1000  // Offset seed for planner to avoid correlation
             );
         }
     }
@@ -64,9 +84,9 @@ class BotPlayer {
             return { action: 'none', reason: 'Cannot act' };
         }
 
-        // Update tracker with any new announcements
+        // Update tracker with any new announcements (now passes full gameState for particle filter)
         this.tracker.updateSettings(gameState.settings);
-        this.tracker.processNewAnnouncements(gameState.announcements, gameState.players);
+        this.tracker.processNewAnnouncements(gameState.announcements, gameState.players, gameState);
 
         // Get decision from planner
         const decision = this.planner.decideMove(gameState, this.tracker, player);

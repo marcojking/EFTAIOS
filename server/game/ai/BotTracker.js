@@ -1,20 +1,21 @@
 const { getAdjacentSectors, getReachableSectors } = require('../mapUtils');
+const { ParticleFilter } = require('./ParticleFilter');
 
 /**
  * BotTracker - Enhanced Probabilistic Tracking System
  *
- * Maintains a probabilistic "Heatmap" for every opponent in the game.
- * Tracks:
- * - Location probability distributions
+ * Now uses a ParticleFilter for more accurate belief tracking.
+ * Maintains:
+ * - Particle-based location probability distributions
  * - Role confirmation (human/alien)
- * - Turn-based movement simulation
- * - Announcement processing for intel gathering
+ * - Trajectory correlation across turns
+ * - Proper YOUR_SECTOR vs ANY_SECTOR distinction
  */
 class BotTracker {
-    constructor(myPlayerId, map, players, gameSettings = {}) {
+    constructor(myPlayerId, map, players, gameSettings = {}, seed = null) {
         this.myPlayerId = myPlayerId;
         this.map = map;
-        this.beliefs = new Map(); // playerId -> PlayerBelief
+        this.beliefs = new Map(); // playerId -> PlayerBelief (legacy, for compatibility)
         this.turnCounter = 0;
         this.settings = gameSettings;
 
@@ -24,7 +25,14 @@ class BotTracker {
         // Track sectors that were attacked and found empty
         this.confirmedEmptySectors = new Map(); // sector -> turn when confirmed empty
 
-        // Initialize belief for all other players
+        // Particle filter for advanced tracking (uses seeded RNG for determinism)
+        this.particleFilter = new ParticleFilter(myPlayerId, map, players, {
+            numParticles: 400,  // Adaptive 300-600 range
+            lieProb: 0.5,       // Prior probability of lying in ANY_SECTOR
+            seed: seed || Date.now()
+        });
+
+        // Initialize legacy belief for all other players (for backwards compatibility)
         players.forEach(p => {
             if (p.id !== myPlayerId) {
                 this.beliefs.set(p.id, new PlayerBelief(p.id, p.name, map, players));
@@ -44,8 +52,13 @@ class BotTracker {
     /**
      * Process all new announcements since last check
      */
-    processNewAnnouncements(announcements, players) {
+    processNewAnnouncements(announcements, players, gameState = null) {
         const newAnnouncements = announcements.slice(this.lastProcessedAnnouncementIndex);
+
+        // Update particle filter with full game state if available
+        if (gameState) {
+            this.particleFilter.update(gameState);
+        }
 
         newAnnouncements.forEach(a => {
             if (a.playerId && a.playerId !== this.myPlayerId) {
@@ -277,28 +290,41 @@ class BotTracker {
 
     /**
      * Get aggregated human probability for a sector
+     * Now uses particle filter for more accurate tracking
      */
     getHumanProbability(sector) {
-        let prob = 0;
-        this.beliefs.forEach(belief => {
-            if (belief.roleProb.human > 0.5 && !belief.isEscaped && !belief.isEliminated) {
-                prob += (belief.heatmap[sector] || 0);
-            }
-        });
-        return Math.min(prob, 1.0);
+        // Use particle filter as primary source
+        return this.particleFilter.getHumanAtSectorProbability(sector);
     }
 
     /**
      * Get aggregated alien probability for a sector
+     * Now uses particle filter for more accurate tracking
      */
     getAlienProbability(sector) {
-        let prob = 0;
-        this.beliefs.forEach(belief => {
-            if (belief.roleProb.alien > 0.5 && !belief.isEliminated) {
-                prob += (belief.heatmap[sector] || 0);
-            }
-        });
-        return Math.min(prob, 1.0);
+        // Use particle filter as primary source
+        return this.particleFilter.getAlienAtSectorProbability(sector);
+    }
+
+    /**
+     * Get human hotspots (top sectors by human probability)
+     */
+    getHumanHotspots(n = 5) {
+        return this.particleFilter.getHumanHotspots(n);
+    }
+
+    /**
+     * Get position probability for a specific player at a sector
+     */
+    getPlayerPositionProbability(playerId, sector) {
+        return this.particleFilter.getPositionProbability(playerId, sector);
+    }
+
+    /**
+     * Get most likely position for a player
+     */
+    getMostLikelyPosition(playerId) {
+        return this.particleFilter.getMostLikelyPosition(playerId);
     }
 
     /**

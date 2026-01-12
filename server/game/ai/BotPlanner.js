@@ -1,5 +1,6 @@
 const { getReachableSectors, getAdjacentSectors } = require('../mapUtils');
 const MapAnalyzer = require('./MapAnalyzer');
+const { SeededRandom } = require('./SeededRandom');
 const {
     generatePersonality,
     getAttackThreshold,
@@ -18,14 +19,19 @@ const {
  *
  * The "Brain" of the bot. Uses state from BotTracker and MapAnalyzer
  * to make optimal moves with personality-based variance.
+ *
+ * Uses seeded RNG for deterministic yet varied behavior.
  */
 class BotPlanner {
-    constructor(botId, map, personality = null) {
+    constructor(botId, map, personality = null, seed = null) {
         this.botId = botId;
         this.map = map;
 
         // Generate or use provided personality
         this.personality = personality || generatePersonality();
+
+        // Seeded RNG for deterministic decisions
+        this.rng = new SeededRandom(seed || Date.now());
 
         // Initialize map analyzer
         this.mapAnalyzer = new MapAnalyzer(map);
@@ -71,13 +77,21 @@ class BotPlanner {
     }
 
     /**
-     * Human Strategy - Expert Level
+     * Human Strategy - Expert Level (Improved)
+     *
+     * Key improvements:
+     * - Less predictable pathing (not always shortest path)
+     * - Stronger preference for silent sectors when threatened
+     * - Route variation to confuse tracking
+     * - Better escape timing
      */
     planHumanMove(gameState, tracker, myPlayer, reachable) {
         const hatches = this.getAvailableHatches(gameState);
         const items = myPlayer.items || [];
         const turn = gameState.currentTurn || 1;
         const urgency = isUrgencyMode(this.personality, turn);
+        const maxTurns = gameState.maxTurns || 39;
+        const turnsRemaining = maxTurns - turn;
 
         this.log(`Human strategy - Turn ${turn}, Urgency: ${urgency}, Items: ${items.length}`);
 
@@ -94,72 +108,119 @@ class BotPlanner {
         }
 
         // === IMMEDIATE ESCAPE CHECK ===
+        // Only rush to escape if we can make it, or if time is running out
         const escapeMove = reachable.find(r => hatches.includes(r.sector));
         if (escapeMove) {
-            this.log(`Immediate escape available at ${escapeMove.sector}`);
-            return {
-                action: 'move',
-                target: escapeMove.sector,
-                reason: 'Escape available!',
-                debug: this.debugLog
-            };
+            const alienNearHatch = tracker.getAlienProbability(escapeMove.sector);
+            const adjacentAlienRisk = this.getAdjacentAlienRisk(escapeMove.sector, tracker);
+
+            // Rush to escape if:
+            // - Very low alien risk at hatch OR
+            // - Urgency mode (late game) OR
+            // - We have defense items
+            const hasDefense = items.some(i => i.type === 'DEFENSE' || i.type === 'CLONE');
+            const shouldEscape = alienNearHatch < 0.3 || urgency || hasDefense || turnsRemaining <= 5;
+
+            if (shouldEscape) {
+                this.log(`Immediate escape at ${escapeMove.sector} (risk: ${(alienNearHatch * 100).toFixed(0)}%)`);
+                return {
+                    action: 'move',
+                    target: escapeMove.sector,
+                    reason: 'Escape available!',
+                    debug: this.debugLog
+                };
+            } else {
+                this.log(`Escape available but risky (${(alienNearHatch * 100).toFixed(0)}%), waiting...`);
+            }
         }
 
-        // === CALCULATE BEST MOVE ===
+        // === CALCULATE BEST MOVE (IMPROVED) ===
         const hasDefense = items.some(i => i.type === 'DEFENSE');
         const hasClone = items.some(i => i.type === 'CLONE');
         const riskMod = getRiskModifier(this.personality, hasDefense, hasClone);
 
-        let bestMove = null;
-        let minCost = Infinity;
-
-        reachable.forEach(move => {
+        // Score each move with improved criteria
+        const scoredMoves = reachable.map(move => {
             const sector = move.sector;
-            let cost = 0;
+            let score = 100; // Base score (higher is better)
 
-            // Distance to nearest escape hatch
+            // 1. Distance to nearest escape hatch (progress toward goal)
             const distToHatch = this.mapAnalyzer.getDistanceToNearestHatch(sector, hatches);
-            cost += distToHatch * 2;
+            const currentDist = this.mapAnalyzer.getDistanceToNearestHatch(myPlayer.position, hatches);
+            const progressBonus = (currentDist - distToHatch) * 10; // +10 per step closer
+            score += progressBonus;
 
-            // Risk from suspected aliens
+            // 2. Alien risk at sector (MAJOR factor)
             const alienRisk = tracker.getAlienProbability(sector);
             const adjacentRisk = this.getAdjacentAlienRisk(sector, tracker);
-            cost += (alienRisk * 10 + adjacentRisk * 5) / riskMod;
+            const totalRisk = alienRisk + adjacentRisk * 0.5;
+            score -= totalRisk * 40 / riskMod; // Heavy penalty for risky sectors
 
-            // Sector type preference
+            // 3. Sector type - STRONG preference for silent sectors
             const sectorData = this.map.grid.find(h => h.label === sector);
             const isSilent = sectorData?.state === 'secure' || sectorData?.state === 'safe';
+            const isDangerous = sectorData?.state === 'dangerous';
 
             if (isSilent) {
-                cost -= 1; // Prefer silent sectors
+                score += 15; // Strong bonus for silent sectors (no noise to give away position)
+            } else if (isDangerous && totalRisk > 0.2) {
+                score -= 10; // Penalty for dangerous sectors when aliens are near
             }
 
-            // Urgency mode: prioritize speed over safety
+            // 4. Route unpredictability (don't always go straight)
+            if (!urgency && turn > 3) {
+                // Early/mid game: add randomness to confuse tracking
+                const unpredictability = (this.rng.random() - 0.5) * 8 * this.personality.riskTolerance;
+                score += unpredictability;
+            }
+
+            // 5. Avoid retracing steps too much
+            if (this.deceptionHistory.slice(-3).includes(sector)) {
+                score -= 5; // Slight penalty for revisiting recent sectors
+            }
+
+            // 6. Urgency mode: prioritize progress over safety
             if (urgency) {
-                cost = distToHatch * 3 + alienRisk * 3;
+                score = 50 + progressBonus * 2 - alienRisk * 20;
             }
 
-            // Movement unpredictability
-            if (shouldDoubleBack(this.personality) && this.deceptionHistory.length > 0) {
-                // Occasionally move in unexpected direction
-                cost += (Math.random() - 0.5) * 2;
-            }
-
-            // Add personality variance
-            cost += (Math.random() - 0.5) * this.personality.riskTolerance;
-
-            if (cost < minCost) {
-                minCost = cost;
-                bestMove = sector;
-            }
+            return { sector, score, distance: distToHatch, risk: totalRisk };
         });
+
+        // Sort by score (highest first)
+        scoredMoves.sort((a, b) => b.score - a.score);
+
+        // Use softmax-style selection for variety (top 3 moves)
+        const topMoves = scoredMoves.slice(0, Math.min(3, scoredMoves.length));
+        let bestMove;
+
+        if (topMoves.length > 1 && !urgency) {
+            // Add some randomness to selection among top moves
+            const scores = topMoves.map(m => m.score);
+            const minScore = Math.min(...scores);
+            const weights = scores.map(s => Math.exp((s - minScore) / 10)); // Temperature = 10
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+            let r = this.rng.random() * totalWeight;
+            for (let i = 0; i < topMoves.length; i++) {
+                r -= weights[i];
+                if (r <= 0) {
+                    bestMove = topMoves[i].sector;
+                    break;
+                }
+            }
+            if (!bestMove) bestMove = topMoves[0].sector;
+        } else {
+            bestMove = topMoves[0]?.sector;
+        }
 
         // Fallback
         if (!bestMove && reachable.length > 0) {
             bestMove = reachable[0].sector;
         }
 
-        this.log(`Best move: ${bestMove} (cost: ${minCost.toFixed(2)})`);
+        const chosen = scoredMoves.find(m => m.sector === bestMove);
+        this.log(`Best move: ${bestMove} (score: ${chosen?.score?.toFixed(1)}, dist: ${chosen?.distance}, risk: ${(chosen?.risk * 100).toFixed(0)}%)`);
 
         return {
             action: 'move',
@@ -170,23 +231,40 @@ class BotPlanner {
     }
 
     /**
-     * Alien Strategy - Expert Level
+     * Alien Strategy - Expert Level (Improved)
+     *
+     * Key improvements:
+     * - Lower attack thresholds (more aggressive)
+     * - Chase behavior toward recent noise declarations
+     * - Hatch camping/denial strategy
+     * - Use human hotspots from particle filter
      */
     planAlienMove(gameState, tracker, myPlayer, reachable) {
         const hatches = this.getAvailableHatches(gameState);
         const turn = gameState.currentTurn || 1;
+        const maxTurns = gameState.maxTurns || 39;
+        const turnsRemaining = maxTurns - turn;
         const huntingStrategy = getHuntingStrategy(this.personality);
+        const isFed = myPlayer.hasFed;
 
-        this.log(`Alien strategy - Turn ${turn}, Style: ${this.personality.huntingStyle}`);
+        this.log(`Alien strategy - Turn ${turn}, Style: ${this.personality.huntingStyle}, Fed: ${isFed}`);
 
         // Get suspected alien positions (to avoid friendly fire)
         const confirmedAliens = tracker.getConfirmedAliens();
         const suspectedAlienSectors = confirmedAliens.map(a => a.mostLikelySector);
 
+        // Get human hotspots from particle filter
+        const humanHotspots = tracker.getHumanHotspots ? tracker.getHumanHotspots(5) : [];
+        const hotspotSectors = humanHotspots.map(h => h.sector);
+
+        // Get recent noise declarations (for chase behavior)
+        const recentNoises = this.getRecentNoiseAnnouncements(gameState, 4);
+
         // === LURKING ALIEN - ATTACK IN PLACE ===
         if (myPlayer.character?.power?.canAttackWithoutMoving) {
             const humanProb = tracker.getHumanProbability(myPlayer.position);
-            const threshold = getAttackThreshold(this.personality, turn);
+            // LOWER threshold for lurking attack
+            const threshold = Math.max(0.15, getAttackThreshold(this.personality, turn) - 0.1);
 
             if (humanProb >= threshold) {
                 this.log(`Lurking attack opportunity: ${(humanProb * 100).toFixed(0)}% probability`);
@@ -198,76 +276,162 @@ class BotPlanner {
             }
         }
 
-        // === FIND ATTACK TARGET ===
-        const attackThreshold = getAttackThreshold(this.personality, turn);
+        // === FIND ATTACK TARGET (IMPROVED) ===
+        // Much LOWER threshold, especially near hatches and late game
+        let baseThreshold = getAttackThreshold(this.personality, turn);
+
+        // Late game: be more aggressive
+        if (turnsRemaining <= 10) {
+            baseThreshold = Math.max(0.1, baseThreshold - 0.15);
+        }
+
+        // First kill bonus: be more aggressive to get fed status
+        if (!isFed) {
+            baseThreshold = Math.max(0.15, baseThreshold - 0.1);
+        }
+
         let bestAttackTarget = null;
-        let highestProb = 0;
+        let highestScore = 0;
 
         reachable.forEach(move => {
             const sector = move.sector;
             const humanProb = tracker.getHumanProbability(sector);
+            const alienProb = tracker.getAlienProbability(sector);
 
-            // Avoid sectors where we just attacked (empty) or where aliens might be
+            // Avoid sectors where we just attacked (empty)
             if (tracker.confirmedEmptySectors.has(sector)) return;
-            if (suspectedAlienSectors.includes(sector)) return;
 
-            // Bonus for hatch sectors (area denial)
+            // Calculate attack score (not just probability)
+            let attackScore = humanProb;
+
+            // BIG bonus for hatch sectors (humans must go there eventually)
             const isHatch = hatches.includes(sector);
-            const effectiveProb = isHatch ? humanProb + 0.2 : humanProb;
+            if (isHatch) {
+                attackScore += 0.25;
+                this.log(`Hatch ${sector}: base ${(humanProb * 100).toFixed(0)}% + 25% hatch bonus`);
+            }
 
-            if (effectiveProb > highestProb) {
-                highestProb = effectiveProb;
-                bestAttackTarget = { sector, prob: effectiveProb, isHatch };
+            // Bonus for sectors near recent noise (chase behavior)
+            const nearRecentNoise = recentNoises.some(n =>
+                this.isAdjacent(sector, n.sector) || sector === n.sector
+            );
+            if (nearRecentNoise) {
+                attackScore += 0.15;
+            }
+
+            // Bonus for human hotspots
+            if (hotspotSectors.includes(sector)) {
+                attackScore += 0.1;
+            }
+
+            // Penalty for friendly fire risk
+            if (suspectedAlienSectors.includes(sector)) {
+                attackScore -= alienProb * 0.5;
+            }
+
+            // Track best target
+            if (attackScore > highestScore) {
+                highestScore = attackScore;
+                bestAttackTarget = {
+                    sector,
+                    score: attackScore,
+                    humanProb,
+                    isHatch,
+                    nearNoise: nearRecentNoise
+                };
             }
         });
 
         // Decide whether to attack
-        if (bestAttackTarget && highestProb >= attackThreshold) {
-            this.log(`Attack target: ${bestAttackTarget.sector} (${(highestProb * 100).toFixed(0)}%)`);
+        const effectiveThreshold = baseThreshold;
+        if (bestAttackTarget && highestScore >= effectiveThreshold) {
+            let reason = `Hunt (${(bestAttackTarget.humanProb * 100).toFixed(0)}%`;
+            if (bestAttackTarget.isHatch) reason += ', hatch denial';
+            if (bestAttackTarget.nearNoise) reason += ', chasing noise';
+            reason += ')';
+
+            this.log(`Attack: ${bestAttackTarget.sector} (score: ${(highestScore * 100).toFixed(0)}%, threshold: ${(effectiveThreshold * 100).toFixed(0)}%)`);
             return {
                 action: 'move_and_attack',
                 target: bestAttackTarget.sector,
-                reason: bestAttackTarget.isHatch
-                    ? `Hatch denial (${(highestProb * 100).toFixed(0)}%)`
-                    : `Hunt target (${(highestProb * 100).toFixed(0)}%)`,
+                reason: reason,
                 debug: this.debugLog
             };
         }
 
-        // === PATROL MOVEMENT ===
-        return this.planPatrolMove(gameState, tracker, myPlayer, reachable, hatches, huntingStrategy, suspectedAlienSectors);
+        // === PATROL/CHASE MOVEMENT ===
+        return this.planPatrolMove(gameState, tracker, myPlayer, reachable, hatches, huntingStrategy, suspectedAlienSectors, recentNoises, hotspotSectors);
     }
 
     /**
-     * Patrol movement for aliens when not attacking
+     * Get recent noise announcements for chase behavior
      */
-    planPatrolMove(gameState, tracker, myPlayer, reachable, hatches, huntingStrategy, suspectedAlienSectors) {
+    getRecentNoiseAnnouncements(gameState, count = 4) {
+        const announcements = gameState.announcements || [];
+        return announcements
+            .filter(a => a.type === 'NOISE' && a.sector)
+            .slice(-count);
+    }
+
+    /**
+     * Patrol movement for aliens when not attacking (Improved)
+     *
+     * Key improvements:
+     * - Chase behavior toward recent noise
+     * - Prioritize human hotspots
+     * - Better hatch camping
+     */
+    planPatrolMove(gameState, tracker, myPlayer, reachable, hatches, huntingStrategy, suspectedAlienSectors, recentNoises = [], hotspotSectors = []) {
         let bestMove = null;
         let maxScore = -Infinity;
 
         const analysis = this.mapAnalyzer.getAnalysis();
         const humanStart = analysis.humanStart;
         const patrolZones = analysis.patrolZones || [];
+        const turn = gameState.currentTurn || 1;
 
         reachable.forEach(move => {
             const sector = move.sector;
             let score = 0;
 
-            // Human probability at this sector
+            // 1. Human probability at this sector (from particle filter)
             const humanProb = tracker.getHumanProbability(sector);
-            score += humanProb * 10;
+            score += humanProb * 15;
 
-            // Hunting style bonuses
+            // 2. CHASE BEHAVIOR: Move toward recent noise declarations
+            const nearRecentNoise = recentNoises.some(n =>
+                this.isAdjacent(sector, n.sector) || sector === n.sector
+            );
+            if (nearRecentNoise) {
+                score += 8; // Strong bonus for chasing noise
+            }
+
+            // Also bonus for being adjacent to noise sectors
+            const adjacentToNoise = recentNoises.some(n => this.isAdjacent(sector, n.sector));
+            if (adjacentToNoise && !nearRecentNoise) {
+                score += 4;
+            }
+
+            // 3. Human hotspot bonus
+            if (hotspotSectors.includes(sector)) {
+                score += 6;
+            }
+
+            // 4. Hunting style bonuses
             if (huntingStrategy.prioritizeHatches) {
-                if (hatches.some(h => this.isAdjacent(sector, h) || h === sector)) {
-                    score += 5;
+                // STRONG bonus for being at or adjacent to hatches
+                if (hatches.includes(sector)) {
+                    score += 10; // At hatch
+                } else if (hatches.some(h => this.isAdjacent(sector, h))) {
+                    score += 6; // Adjacent to hatch
                 }
             }
 
-            if (huntingStrategy.prioritizeHumanSpawn) {
+            if (huntingStrategy.prioritizeHumanSpawn && turn <= 10) {
+                // Early game: camp near human spawn
                 const distToHumanStart = this.mapAnalyzer.computeDistance(sector, humanStart);
                 if (distToHumanStart <= 3) {
-                    score += 3;
+                    score += 4;
                 }
             }
 
@@ -278,13 +442,19 @@ class BotPlanner {
                 }
             }
 
-            // Avoid other aliens (prevent friendly fire)
+            // 5. Avoid other aliens (prevent friendly fire)
             if (suspectedAlienSectors.includes(sector)) {
-                score -= 10;
+                score -= 15;
             }
 
-            // Personality variance
-            score += (Math.random() - 0.5) * 2 * this.personality.patrolPreference;
+            // 6. Prefer dangerous sectors (more likely to catch humans making noise)
+            const sectorData = this.map.grid.find(h => h.label === sector);
+            if (sectorData?.state === 'dangerous') {
+                score += 1;
+            }
+
+            // 7. Personality variance (adds unpredictability)
+            score += (this.rng.random() - 0.5) * 3 * this.personality.patrolPreference;
 
             if (score > maxScore) {
                 maxScore = score;
@@ -294,12 +464,22 @@ class BotPlanner {
 
         if (!bestMove) bestMove = reachable[0]?.sector;
 
-        this.log(`Patrol move: ${bestMove} (score: ${maxScore.toFixed(2)})`);
+        // Determine reason based on what influenced the decision
+        let reason = 'Hunting patrol';
+        if (recentNoises.length > 0 && recentNoises.some(n => this.isAdjacent(bestMove, n.sector) || bestMove === n.sector)) {
+            reason = 'Chasing noise';
+        } else if (hatches.includes(bestMove) || hatches.some(h => this.isAdjacent(bestMove, h))) {
+            reason = 'Hatch patrol';
+        } else if (hotspotSectors.includes(bestMove)) {
+            reason = 'Tracking hotspot';
+        }
+
+        this.log(`Patrol: ${bestMove} (score: ${maxScore.toFixed(1)}, reason: ${reason})`);
 
         return {
             action: 'move',
             target: bestMove,
-            reason: 'Hunting patrol',
+            reason: reason,
             debug: this.debugLog
         };
     }
@@ -517,7 +697,7 @@ class BotPlanner {
                 this.isAdjacent(s, this.lastDeceptionSector) || s === this.lastDeceptionSector
             );
             if (nearLast.length > 0) {
-                const choice = nearLast[Math.floor(Math.random() * nearLast.length)];
+                const choice = nearLast[Math.floor(this.rng.random() * nearLast.length)];
                 this.lastDeceptionSector = choice;
                 this.deceptionHistory.push(choice);
                 return choice;
@@ -535,7 +715,7 @@ class BotPlanner {
 
             // Pick from top 3 farthest
             const topChoices = scored.slice(0, Math.min(3, scored.length));
-            const choice = topChoices[Math.floor(Math.random() * topChoices.length)].sector;
+            const choice = topChoices[Math.floor(this.rng.random() * topChoices.length)].sector;
             this.lastDeceptionSector = choice;
             return choice;
         }
@@ -553,7 +733,7 @@ class BotPlanner {
                     recentNoise.some(n => this.isAdjacent(s, n))
                 );
                 if (nearNoise.length > 0) {
-                    return nearNoise[Math.floor(Math.random() * nearNoise.length)];
+                    return nearNoise[Math.floor(this.rng.random() * nearNoise.length)];
                 }
             }
         }
@@ -564,8 +744,8 @@ class BotPlanner {
             const nearHatches = plausibleSectors.filter(s =>
                 hatches.some(h => this.isAdjacent(s, h))
             );
-            if (nearHatches.length > 0 && Math.random() < 0.3) {
-                return nearHatches[Math.floor(Math.random() * nearHatches.length)];
+            if (nearHatches.length > 0 && this.rng.random() < 0.3) {
+                return nearHatches[Math.floor(this.rng.random() * nearHatches.length)];
             }
         }
 
@@ -576,13 +756,13 @@ class BotPlanner {
             const nearHumanStart = plausibleSectors.filter(s =>
                 this.mapAnalyzer.computeDistance(s, analysis.humanStart) <= 3
             );
-            if (nearHumanStart.length > 0 && Math.random() < 0.4) {
-                return nearHumanStart[Math.floor(Math.random() * nearHumanStart.length)];
+            if (nearHumanStart.length > 0 && this.rng.random() < 0.4) {
+                return nearHumanStart[Math.floor(this.rng.random() * nearHumanStart.length)];
             }
         }
 
         // === RANDOM FALLBACK ===
-        return plausibleSectors[Math.floor(Math.random() * plausibleSectors.length)];
+        return plausibleSectors[Math.floor(this.rng.random() * plausibleSectors.length)];
     }
 
     /**
